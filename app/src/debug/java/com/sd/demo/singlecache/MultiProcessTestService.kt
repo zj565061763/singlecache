@@ -104,7 +104,7 @@ interface MultiProcessCounter<T : MultiProcessCounter<T>> {
   fun withCount(count: Int): T
 }
 
-@SingleCacheEntity("MultiProcessCounterModel")
+@SingleCacheEntity("MultiProcessCounterModel", multiProcess = true)
 data class MultiProcessCounterModel(
   override val count: Int = 0,
 ) : MultiProcessCounter<MultiProcessCounterModel> {
@@ -112,7 +112,7 @@ data class MultiProcessCounterModel(
 }
 
 /** 测试进程只以仅磁盘缓存使用，创建过内存缓存后DataStore不再关闭，就测不到仅磁盘缓存 */
-@SingleCacheEntity("MultiProcessDiskCounterModel")
+@SingleCacheEntity("MultiProcessDiskCounterModel", multiProcess = true)
 data class MultiProcessDiskCounterModel(
   override val count: Int = 0,
 ) : MultiProcessCounter<MultiProcessDiskCounterModel> {

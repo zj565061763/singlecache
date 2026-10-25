@@ -10,7 +10,7 @@ Android 单值缓存库，Maven 坐标 `io.github.zj565061763.android:singlecach
 - 测试：全部在 `app/src/androidTest/`，没有本地 JVM 测试
 - 依赖版本：`gradle/libs.versions.toml`；发布坐标及版本：`lib/gradle.properties`
 
-调用链：`singleCache → SingleCache.get → SingleCacheImpl → SingleCacheStore → DataStore（MultiProcessDataStoreFactory）→ CacheStateSerializer → DefaultObjectConverter`。
+调用链：`singleCache → SingleCache.get → SingleCacheImpl → SingleCacheStore → DataStore（单进程 `DataStoreFactory`，多进程 `MultiProcessDataStoreFactory`）→ CacheStateSerializer → DefaultObjectConverter`。
 
 ## datastore 目录
 
@@ -50,6 +50,8 @@ val diskCache = singleCache(memoryCache = false) { UserProfile() } // 仅磁盘�
 - `SingleCacheConfig.init(context)` 在每个进程的 `Application.onCreate()` 中调用一次，重复调用会失败。
 - 配置只开放 `ExceptionHandler`；序列化固定使用 Moshi（`DefaultObjectConverter`）。
 - `@SingleCacheEntity.id` 不能为空白或含非法 UTF-16，在应用内不能重复。
+- `@SingleCacheEntity.multiProcess` 默认 `false`，使用单进程 DataStore；`true` 使用多进程 DataStore。
+- 开关放在注解上：同一类型的实例共用一个 DataStore，各进程读到同一个类声明，模式天然一致。
 - 实体类不能带泛型参数：`T::class.java` 丢失类型实参，Moshi 无法序列化，不同实参还会共用同一个缓存文件。
 - 每次调用都返回新实例，并调用一次 `getDefault`；同一类型的实例共用一个 `SingleCacheStore`。
 - `memoryCache=true`（默认）：内存值一直保留。
@@ -69,26 +71,31 @@ val diskCache = singleCache(memoryCache = false) { UserProfile() } // 仅磁盘�
 - 关闭完成不能用 `Job.join()` 判断：Job 完成后才执行 DataStore 释放文件的回调，`join()` 可能先返回。
 - 关闭完成的信号由 DataStore 创建后注册的 `invokeOnCompletion` 回调发出，回调按注册顺序执行。
 - `flow` 的整个收集过程、每次 `get()` 和 `update` 都算一个使用者。
-- `update` 在进程内 `Mutex` 加跨进程文件锁内完成读改写，跨进程原子。
+- `update` 在进程内 `Mutex` 内完成读改写；多进程模式再加跨进程文件锁，跨进程原子。
 - 库会在 Java 和 Kotlin 混用的项目中使用，怎么调用都不能死锁，比如主线程 `runBlocking` 同步读写。
 - 加锁和等锁都不能发生在调用方的上下文中：`get()` 和 `update` 整体切到 `Dispatchers.IO`，`flow` 的上游用 `flowOn(Dispatchers.IO)`。
 - `get()` 直接取 DataStore `data` 的首个值，不能用 `flow.first()`：`flowOn` 让上游在首个值之后继续执行，每次读取都会启动 DataStore 的文件监听。
 - 不能只在 `transform` 里切到 IO：DataStore 会先回到调用方的调度器才执行 `transform`。
-- `block` 在锁内执行，耗时的 `block` 会让本进程和其他进程的 `update` 一起等待。
-- DataStore 总有一个迁移任务，初始化读取要拿排他锁，所以进程内首次读取、仅磁盘缓存重新打开后的读取也会等其他进程的 `block`。
+- `block` 在锁内执行，耗时的 `block` 会让本进程的 `update` 一起等待，多进程模式还包括其他进程的。
+- 多进程模式下，DataStore 总有一个迁移任务，初始化读取要拿排他锁，所以进程内首次读取、仅磁盘缓存重新打开后的读取也会等其他进程的 `block`。
 - 在 `block` 里交叉更新不同的缓存会互相等待而死锁，库不检测。
-- 在 `block` 里读取其他缓存，多个进程交叉读取时内核会检测到文件锁死锁，一方重试约 82 秒后读取失败，读到默认值。
+- 多进程模式下，在 `block` 里读取其他缓存，多个进程交叉读取时内核会检测到文件锁死锁，一方重试约 82 秒后读取失败，读到默认值。
 - 不要为此去掉初始化的排他锁：不加锁读取可能把旧数据记成最新版本号，直到下一次写入都不刷新。
-- `flow` 在有订阅者时才监听文件。
-- 没有订阅者时，`get()` 靠共享版本号判断内存值是否过期。
+- 多进程模式的 DataStore 在 `flow` 有订阅者时才监听文件；单进程模式的 DataStore 不监听文件。
+- 多进程模式没有订阅者时，`get()` 靠共享版本号判断内存值是否过期。
+- 单进程模式的版本号只在内存中，DataStore 关闭后归零。
 - 跨进程只保证最终一致：其他进程的写入通过 `FileObserver` 的 `MOVED_TO` 事件异步通知。
 - 不支持运行中删除数据目录，审查时不要列为缺陷。
 - 版本号是 `Int`，同一缓存累计写入约 21 亿次后回绕为负数，跨越时仍在运行的 DataStore 的订阅者收不到新值；概率极低，保持上游逻辑，审查时不要列为缺陷。
 - 同一目录的文件监听共用一个 `FileObserver`，注册时目录不存在则监听失效，这是上游 `MulticastFileObserver` 的行为。
 - 读取失败的 `flow` 只在数据目录存在时注册文件监听；目录不存在时每 10 秒重读一次。
 - 计算缓存文件路径失败（如 API 23 及以下 `filesDir` 返回 null）也按目录不存在处理。
+- 读取失败后的文件监听由 `SingleCacheImpl` 注册，单进程模式同样有效：本进程替换数据文件也会产生 `MOVED_TO`。
 
-修改读取、版本号、订阅或 DataStore 生命周期逻辑时，两种模式都要测试：多个订阅者、快速连续更新、并发更新、跨进程更新通知、无订阅者时读到其他进程的写入。
+修改读取、版本号、订阅或 DataStore 生命周期逻辑时：
+
+- 内存缓存和仅磁盘缓存、单进程和多进程都要测试：多个订阅者、快速连续更新、并发更新。
+- 多进程模式还要测试：跨进程更新通知、无订阅者时读到其他进程的写入。
 
 ## 异常模型
 
@@ -103,7 +110,7 @@ val diskCache = singleCache(memoryCache = false) { UserProfile() } // 仅磁盘�
 - `id` 重复、内部配置错误和所有 JVM `Error` 必须继续抛出，不能降级。
 - DataStore 的 scope 带 `CoroutineExceptionHandler`，内部协程没有处理的异常交给 `ExceptionHandler`，不能让进程崩溃。
 - 接入方的 `ExceptionHandler` 自己抛出的异常不拦截，在 DataStore 内部协程里会让进程崩溃；公开文档已要求回调不抛异常。
-- 订阅期间收到文件变化后拿锁失败，异常交给 `ExceptionHandler`，文件监听继续。
+- 多进程模式下，订阅期间收到文件变化后拿锁失败，异常交给 `ExceptionHandler`，文件监听继续。
 - 拿锁失败的那次变化不重试，等下一次文件事件、本进程的 `get()` 或 `update` 才读到。
 
 ## 文件格式
@@ -111,7 +118,8 @@ val diskCache = singleCache(memoryCache = false) { UserProfile() } // 仅磁盘�
 - 数据文件：`filesDir/sd.lib.singlecache/<md5(id)>.json`，内容是 Moshi 编码的 JSON；空文件表示无缓存。
 - 编码时写出 null，解码用 moshi-kotlin 标准的 `KotlinJsonAdapterFactory`，区分显式 null 和字段缺失。
 - 不要换回把显式 null 当作缺失的适配器（如 fMoshi）：可空字段的默认值不是 null 时，写入 null 会读回默认值。
-- DataStore 在同目录创建 `<文件名>.lock`、`<文件名>.version`、`<文件名>.tmp`。
+- DataStore 在同目录创建 `<文件名>.tmp`；多进程模式还创建 `<文件名>.lock`、`<文件名>.version`。
+- 同一实体切换 `multiProcess` 不影响数据文件，遗留的 `.lock`、`.version` 无害。
 - 修改目录、文件名、编码或版本文件格式都是持久化兼容性变更，需要迁移说明和测试。
 
 ## 构建与验证
@@ -135,12 +143,14 @@ val diskCache = singleCache(memoryCache = false) { UserProfile() } // 仅磁盘�
 
 | 测试类 | 覆盖范围 |
 |---|---|
-| `SingleCacheTest` | 读写、删除、挂起的 block、阻塞调用方线程时不死锁、新实例共用 DataStore、Flow、并发更新、解码失败、非法 UTF-8、删除无法解码的缓存、替换文件失败不缓存新值、null 值读写、不可空字段读到 null、读取失败、锁被占用时恢复读取、数据目录创建失败后恢复、计算缓存文件路径失败后恢复、并发取消订阅后的订阅计数和文件监听、读取不启动文件监听、订阅期间拿锁失败不崩溃且继续监听、非法 UTF-16、配置错误、泛型实体 |
-| `DiskSingleCacheTest` | 仅磁盘缓存：实例和默认值、释放后重新读盘、Flow、并发更新、与内存缓存混用、删除无法解码的缓存、替换文件失败不缓存新值、null 值读写、读取失败后的写入、锁被占用时恢复读取、数据目录创建失败后恢复、计算缓存文件路径失败后恢复、并发取消订阅后的订阅计数和文件监听、读取不启动文件监听、订阅期间拿锁失败不崩溃且继续监听、阻塞调用方线程时不死锁 |
+| `SingleCacheTest` | 多进程模式：读写、删除、挂起的 block、阻塞调用方线程时不死锁、新实例共用 DataStore、Flow、并发更新、解码失败、非法 UTF-8、删除无法解码的缓存、替换文件失败不缓存新值、null 值读写、不可空字段读到 null、读取失败、锁被占用时恢复读取、数据目录创建失败后恢复、计算缓存文件路径失败后恢复、并发取消订阅后的订阅计数和文件监听、读取不启动文件监听、订阅期间拿锁失败不崩溃且继续监听、非法 UTF-16、配置错误、泛型实体 |
+| `DiskSingleCacheTest` | 多进程模式的仅磁盘缓存：实例和默认值、释放后重新读盘、Flow、并发更新、与内存缓存混用、删除无法解码的缓存、替换文件失败不缓存新值、null 值读写、读取失败后的写入、锁被占用时恢复读取、数据目录创建失败后恢复、计算缓存文件路径失败后恢复、并发取消订阅后的订阅计数和文件监听、读取不启动文件监听、订阅期间拿锁失败不崩溃且继续监听、阻塞调用方线程时不死锁 |
+| `SingleProcessSingleCacheTest` | 单进程模式，内存缓存和仅磁盘缓存：读写、删除、Flow、并发更新、快速连续更新、释放后重新读盘、两种模式混用、删除无法解码的缓存、null 值读写、替换文件失败不缓存新值、读取失败后的写入、阻塞调用方线程时不死锁、不注册文件监听且不生成锁文件和版本文件 |
 | `MultiProcessSingleCacheTest` | 两种模式的跨进程并发更新和更新通知、无订阅者读取 |
 
 - 文件监听和 IO 用的是真实时间，所以使用 `runBlocking`、`TEST_TIMEOUT`（15 秒）和 `awaitItemUntil`，不要换成虚拟时间的 `runTest`。
 - 新增测试模型使用唯一的 `id`。
+- `SingleCacheTest`、`DiskSingleCacheTest`、`MultiProcessSingleCacheTest` 的模型声明 `multiProcess = true`；单进程模式的测试放在 `SingleProcessSingleCacheTest`。
 - 数据目录的测试会清空目录，测试不能依赖其他测试留下的文件。
 - 清空目录后，之前打开过的 DataStore 的版本号会失效，所以每个测试使用自己的模型，不跨测试复用。
 - 用到远端进程的测试只放在 `MultiProcessSingleCacheTest`，它的模型会被远端进程一直持有。

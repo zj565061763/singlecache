@@ -171,7 +171,7 @@ suspend fun <T> assertRecoverAfterProduceFileFailure(
 ) {
   val file = singleCacheFile(id)
   val failing = AtomicBoolean(true)
-  val cache = newSingleCache(clazz, memoryCache, defaultValue) {
+  val cache = newSingleCache(clazz, multiProcess = true, memoryCache = memoryCache, defaultValue = defaultValue) {
     if (failing.get()) throw TestProduceFileException()
     file
   }
@@ -370,6 +370,31 @@ suspend fun <T> assertLockFailureReported(
 }
 
 /**
+ * 单进程模式不使用跨进程机制：订阅期间不注册文件监听，读写后不生成锁文件和版本文件。
+ * 会等其他测试遗留的文件监听释放。
+ */
+suspend fun <T> assertNoMultiProcessFiles(id: String, cache: SingleCache<T>, value: T) {
+  val file = singleCacheFile(id)
+  val lockFile = File(file.absolutePath + ".lock")
+  val versionFile = File(file.absolutePath + ".version")
+  assertEquals(true, cache.update { null })
+  // 测试设备上可能有切换模式前留下的文件
+  lockFile.delete()
+  versionFile.delete()
+  withTimeout(TEST_TIMEOUT) { while (fileObserverCount() != 0) delay(10) }
+  cache.flow.test(timeout = TEST_TIMEOUT) {
+    awaitItem()
+    assertEquals(true, cache.update { value })
+    awaitItemUntil(value)
+    assertEquals(0, fileObserverCount())
+    cancelAndIgnoreRemainingEvents()
+  }
+  assertEquals(value, cache.get())
+  assertEquals(false, lockFile.exists())
+  assertEquals(false, versionFile.exists())
+}
+
+/**
  * 无法解码的缓存用`update { null }`删除后要清空文件，否则之后每次读盘都会上报解码异常。
  * 在首次读取前写入，保证读到的是无法解码的内容。
  */
@@ -443,9 +468,10 @@ private suspend fun withSingleThread(block: suspend CoroutineScope.() -> Unit) {
 }
 
 /** 通过反射创建缓存，用[produceFile]计算缓存文件，与库中的构造参数保持一致 */
-private fun <T> newSingleCache(clazz: Class<T>, memoryCache: Boolean, defaultValue: T, produceFile: () -> File): SingleCache<T> {
+private fun <T> newSingleCache(clazz: Class<T>, multiProcess: Boolean, memoryCache: Boolean, defaultValue: T, produceFile: () -> File): SingleCache<T> {
   val storeClass = Class.forName("com.sd.lib.singlecache.SingleCacheStore")
-  val store = storeClass.getDeclaredConstructor(Class::class.java, Function0::class.java).newInstance(clazz, produceFile)
+  val store = storeClass.getDeclaredConstructor(Class::class.java, Boolean::class.javaPrimitiveType, Function0::class.java)
+    .newInstance(clazz, multiProcess, produceFile)
   if (memoryCache) storeClass.getDeclaredMethod("retainInMemory").invoke(store)
   @Suppress("UNCHECKED_CAST")
   return Class.forName("com.sd.lib.singlecache.SingleCacheImpl")
@@ -466,7 +492,9 @@ private fun SingleCache<*>.coordinatorMutex(): Mutex {
   val store = javaClass.getDeclaredField("store").apply { isAccessible = true }.get(this)!!
   val dataStore = store.javaClass.getDeclaredField("_dataStore").apply { isAccessible = true }.get(store)!!
   val coordinator = (dataStore.javaClass.getDeclaredField("coordinator\$delegate").apply { isAccessible = true }.get(dataStore) as Lazy<*>).value!!
-  return coordinator.javaClass.getDeclaredField("inMemoryMutex").apply { isAccessible = true }.get(coordinator) as Mutex
+  // 多进程是MultiProcessCoordinator的inMemoryMutex，单进程是SingleProcessCoordinator的mutex
+  val fieldName = if (coordinator.javaClass.simpleName == "SingleProcessCoordinator") "mutex" else "inMemoryMutex"
+  return coordinator.javaClass.getDeclaredField(fieldName).apply { isAccessible = true }.get(coordinator) as Mutex
 }
 
 /** 通过反射取得DataStore的订阅计数，DataStore已关闭时返回null，与库中的字段名保持一致 */

@@ -1,6 +1,6 @@
 [![Maven Central](https://img.shields.io/maven-central/v/io.github.zj565061763.android/singlecache)](https://central.sonatype.com/search?q=g:io.github.zj565061763.android+singlecache)
 
-单值缓存库：每个实体类型只保存一个值，支持多进程读写。
+单值缓存库：每个实体类型只保存一个值，可选支持多进程读写。
 
 # Gradle
 
@@ -38,23 +38,35 @@ cache.update { null }                      // 删除，之后读到默认值
 | 项目 | `memoryCache = true`（默认） | `memoryCache = false` |
 |---|---|---|
 | 内存中的值 | 一直保留 | 没有订阅和进行中的 `update` 时释放 |
-| 读取 | 直接用内存中的值，其他进程修改后才重新读盘 | 释放后的下一次读取重新读盘 |
+| 读取 | 直接用内存中的值，开启多进程时其他进程修改后重新读盘 | 释放后的下一次读取重新读盘 |
 
 - 每次调用 `singleCache` 都返回新实例，并调用一次 `getDefault`，每个实例使用自己的默认值。
 - 同一类型的所有实例共用同一份缓存，互相能读到对方的更新。
 - 两种模式可以混用。
 - 只要进程内创建过这个类型的内存缓存，它的值就会一直保留在内存中。
 
+# 多进程
+
+默认只支持单进程，多个进程读写同一缓存时，在实体上开启 `multiProcess`：
+
+```kotlin
+@SingleCacheEntity(id = "UserProfile", multiProcess = true)
+data class UserProfile(val name: String = "")
+```
+
+- 多个进程读写同一缓存却没有开启时，可能丢失修改或读到旧值。
+- 开启后，多个进程同时 `update` 不会丢失修改。
+- 其他进程的修改，`flow` 会稍后收到。
+- `get()` 能立即读到其他进程已完成的修改。
+- 不要在 `block` 里读取其他缓存：多个进程交叉读取时，一方会等待一分多钟，然后读到默认值。
+- 开启或关闭 `multiProcess` 不影响已有的缓存。
+
 # 行为
 
-- 多个进程同时 `update` 不会丢失修改。
 - `block` 是挂起函数，在 `Dispatchers.IO` 上执行。
 - `block` 抛出的异常原样抛给调用方。
 - 不要在 `block` 里更新缓存：更新同一个缓存会返回 `false`，交叉更新不同的缓存会死锁。
-- 不要在 `block` 里读取其他缓存：多个进程交叉读取时，一方会等待一分多钟，然后读到默认值。
 - 可以在任意线程用 `runBlocking` 同步读写，不会死锁（`block` 里读写其他缓存除外）。
-- 其他进程的修改，`flow` 会稍后收到。
-- `get()` 能立即读到其他进程已完成的修改。
 - 缓存值必须不可变：在 `block` 里修改传入的值，`update` 可能失败、可能不保存修改，也可能改掉该实例的默认值。
 - 修改 `get()` 或 `flow` 读到的值不会写入磁盘，同进程其他地方可能读到修改后的值。
 - 读写失败时，异常交给 `ExceptionHandler`，可能在任意线程回调。

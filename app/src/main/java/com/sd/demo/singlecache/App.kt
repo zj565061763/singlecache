@@ -20,7 +20,7 @@ class App : Application() {
   }
 }
 
-@SingleCacheEntity("CounterModel")
+@SingleCacheEntity("CounterModel", multiProcess = true)
 data class CounterModel(
   val count: Int = 0,
 )

@@ -1,6 +1,7 @@
 package com.sd.lib.singlecache
 
 import com.sd.lib.singlecache.datastore.DataStore
+import com.sd.lib.singlecache.datastore.DataStoreFactory
 import com.sd.lib.singlecache.datastore.MultiProcessDataStoreFactory
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineExceptionHandler
@@ -22,6 +23,7 @@ import java.io.File
  */
 internal class SingleCacheStore<T>(
   private val clazz: Class<T>,
+  private val multiProcess: Boolean,
   produceFile: () -> File,
 ) {
   /** 缓存文件，由DataStore首次读写时在IO线程计算，因为获取filesDir会读磁盘 */
@@ -76,13 +78,16 @@ internal class SingleCacheStore<T>(
   private fun newDataStore(): DataStore<CacheState<T>> {
     val job = SupervisorJob()
     val closed = CompletableDeferred<Unit>()
+    val serializer = CacheStateSerializer(clazz)
+    // DataStore内部协程没有处理的异常交给ExceptionHandler，否则会让进程崩溃
+    val scope = CoroutineScope(Dispatchers.IO + job + CoroutineExceptionHandler { _, e -> reportException(e) })
     // 不传corruptionHandler，原因见SharedCounter
-    return MultiProcessDataStoreFactory.create(
-      serializer = CacheStateSerializer(clazz),
-      // DataStore内部协程没有处理的异常交给ExceptionHandler，否则会让进程崩溃
-      scope = CoroutineScope(Dispatchers.IO + job + CoroutineExceptionHandler { _, e -> reportException(e) }),
-      produceFile = { file },
-    ).also {
+    val dataStore = if (multiProcess) {
+      MultiProcessDataStoreFactory.create(serializer = serializer, scope = scope, produceFile = { file })
+    } else {
+      DataStoreFactory.create(serializer = serializer, scope = scope, produceFile = { file })
+    }
+    return dataStore.also {
       // 回调按注册顺序执行，在DataStore之后注册，执行时DataStore已关闭
       job.invokeOnCompletion { closed.complete(Unit) }
       _dataStore = it

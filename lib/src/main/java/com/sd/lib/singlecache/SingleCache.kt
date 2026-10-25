@@ -3,7 +3,7 @@ package com.sd.lib.singlecache
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 
-/** 单值缓存，每个实体类型只保存一个值，支持多进程读写 */
+/** 单值缓存，每个实体类型只保存一个值，[SingleCacheEntity.multiProcess]为true时支持多进程读写 */
 interface SingleCache<T> {
 
   /** 缓存流，缓存变化时发射最新值 */
@@ -53,9 +53,14 @@ interface SingleCache<T> {
       val store = synchronized(sStores) {
         sStores.getOrPut(clazz) {
           val config = SingleCacheConfig.get()
-          val id = entityId(clazz)
+          val entity = cacheEntity(clazz)
+          val id = entity.id
           bindId(id = id, clazz = clazz)
-          SingleCacheStore(clazz = clazz, produceFile = { config.directory.resolve("${md5(id)}.json") })
+          SingleCacheStore(
+            clazz = clazz,
+            multiProcess = entity.multiProcess,
+            produceFile = { config.directory.resolve("${md5(id)}.json") },
+          )
         }
       }
       @Suppress("UNCHECKED_CAST")
@@ -83,7 +88,8 @@ inline fun <reified T> singleCache(
   )
 }
 
-private fun entityId(clazz: Class<*>): String {
+/** 取得[clazz]上的[SingleCacheEntity]并校验 */
+private fun cacheEntity(clazz: Class<*>): SingleCacheEntity {
   val annotation = clazz.getAnnotation(SingleCacheEntity::class.java)
   require(annotation != null) { "Annotation ${SingleCacheEntity::class.java.simpleName} was not found in $clazz" }
   // 类型实参在运行时丢失，无法序列化，不同实参还会共用同一个缓存文件
@@ -100,5 +106,5 @@ private fun entityId(clazz: Class<*>): String {
       error,
     )
   }
-  return id
+  return annotation
 }

@@ -11,4 +11,6 @@ package com.sd.lib.singlecache
 annotation class SingleCacheEntity(
   /** 缓存id，在应用内不能重复，修改后读不到原来的缓存 */
   val id: String,
+  /** 是否支持多进程读写，多个进程读写同一缓存时必须设为true，否则可能丢失修改或读到旧值 */
+  val multiProcess: Boolean = false,
 )

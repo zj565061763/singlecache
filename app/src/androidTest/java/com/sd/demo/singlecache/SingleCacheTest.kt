@@ -22,6 +22,7 @@ import org.junit.runner.RunWith
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.ContinuationInterceptor
 
+/** 多进程模式的内存缓存，单进程模式见[SingleProcessSingleCacheTest] */
 @RunWith(AndroidJUnit4::class)
 class SingleCacheTest {
   @Test
@@ -359,73 +360,73 @@ private const val PRODUCE_FILE_FAILURE_MODEL_ID = "TestProduceFileFailureModel"
 private const val LOCK_FAILURE_MODEL_ID = "TestLockFailureModel"
 private const val DUPLICATE_MODEL_ID = "TestDuplicateIdModel"
 
-@SingleCacheEntity("TestUpdateModel")
+@SingleCacheEntity("TestUpdateModel", multiProcess = true)
 data class TestUpdateModel(val name: String = "default")
 
-@SingleCacheEntity("TestInstanceModel")
+@SingleCacheEntity("TestInstanceModel", multiProcess = true)
 data class TestInstanceModel(val name: String = "default")
 
-@SingleCacheEntity("TestFlowModel")
+@SingleCacheEntity("TestFlowModel", multiProcess = true)
 data class TestFlowModel(val name: String = "default")
 
-@SingleCacheEntity("TestMultiSubscriberModel")
+@SingleCacheEntity("TestMultiSubscriberModel", multiProcess = true)
 data class TestMultiSubscriberModel(val name: String = "default")
 
-@SingleCacheEntity("TestCounterModel")
+@SingleCacheEntity("TestCounterModel", multiProcess = true)
 data class TestCounterModel(val count: Int = 0)
 
-@SingleCacheEntity("TestRapidModel")
+@SingleCacheEntity("TestRapidModel", multiProcess = true)
 data class TestRapidModel(val count: Int = 0)
 
-@SingleCacheEntity(DECODE_FAILURE_MODEL_ID)
+@SingleCacheEntity(DECODE_FAILURE_MODEL_ID, multiProcess = true)
 data class TestDecodeFailureModel(val name: String = "default")
 
-@SingleCacheEntity(INVALID_UTF8_MODEL_ID)
+@SingleCacheEntity(INVALID_UTF8_MODEL_ID, multiProcess = true)
 data class TestInvalidUtf8Model(val name: String = "default")
 
-@SingleCacheEntity(DELETE_UNDECODABLE_MODEL_ID)
+@SingleCacheEntity(DELETE_UNDECODABLE_MODEL_ID, multiProcess = true)
 data class TestDeleteUndecodableModel(val name: String = "default")
 
-@SingleCacheEntity(REPLACE_FAILURE_MODEL_ID)
+@SingleCacheEntity(REPLACE_FAILURE_MODEL_ID, multiProcess = true)
 data class TestReplaceFailureModel(val name: String = "default")
 
-@SingleCacheEntity("TestNullValueModel")
+@SingleCacheEntity("TestNullValueModel", multiProcess = true)
 data class TestNullValueModel(
   val name: String? = "default",
   val tags: Map<String, String?> = mapOf("key" to "default"),
 )
 
-@SingleCacheEntity(NON_NULL_FIELD_MODEL_ID)
+@SingleCacheEntity(NON_NULL_FIELD_MODEL_ID, multiProcess = true)
 data class TestNonNullFieldModel(val name: String = "default", val count: Int = 1)
 
-@SingleCacheEntity("TestUtf16Model")
+@SingleCacheEntity("TestUtf16Model", multiProcess = true)
 data class TestUtf16Model(val name: String = "default")
 
-@SingleCacheEntity("TestBlockExceptionModel")
+@SingleCacheEntity("TestBlockExceptionModel", multiProcess = true)
 data class TestBlockExceptionModel(val name: String = "default")
 
-@SingleCacheEntity("TestSuspendBlockModel")
+@SingleCacheEntity("TestSuspendBlockModel", multiProcess = true)
 data class TestSuspendBlockModel(val name: String = "default")
 
-@SingleCacheEntity("TestBlockedUpdateModel")
+@SingleCacheEntity("TestBlockedUpdateModel", multiProcess = true)
 data class TestBlockedUpdateModel(val count: Int = 0)
 
-@SingleCacheEntity("TestBlockedReadModel")
+@SingleCacheEntity("TestBlockedReadModel", multiProcess = true)
 data class TestBlockedReadModel(val name: String = "default")
 
-@SingleCacheEntity(READ_FAILURE_MODEL_ID)
+@SingleCacheEntity(READ_FAILURE_MODEL_ID, multiProcess = true)
 data class TestReadFailureModel(val name: String = "default")
 
-@SingleCacheEntity(READ_RECOVER_MODEL_ID)
+@SingleCacheEntity(READ_RECOVER_MODEL_ID, multiProcess = true)
 data class TestReadRecoverModel(val name: String = "default")
 
-@SingleCacheEntity(LOCKED_RECOVER_MODEL_ID)
+@SingleCacheEntity(LOCKED_RECOVER_MODEL_ID, multiProcess = true)
 data class TestLockedRecoverModel(val name: String = "default")
 
-@SingleCacheEntity(DIRECTORY_FAILURE_MODEL_ID)
+@SingleCacheEntity(DIRECTORY_FAILURE_MODEL_ID, multiProcess = true)
 data class TestDirectoryFailureModel(val name: String = "default")
 
-@SingleCacheEntity(PRODUCE_FILE_FAILURE_MODEL_ID)
+@SingleCacheEntity(PRODUCE_FILE_FAILURE_MODEL_ID, multiProcess = true)
 data class TestProduceFileFailureModel(val name: String = "default")
 
 @SingleCacheEntity(DUPLICATE_MODEL_ID)
@@ -441,11 +442,11 @@ data class TestGenericModel<T>(val value: T)
 
 private class TestBlockException : RuntimeException()
 
-@SingleCacheEntity("TestCollectorCountModel")
+@SingleCacheEntity("TestCollectorCountModel", multiProcess = true)
 data class TestCollectorCountModel(val name: String = "default")
 
-@SingleCacheEntity(LOCK_FAILURE_MODEL_ID)
+@SingleCacheEntity(LOCK_FAILURE_MODEL_ID, multiProcess = true)
 data class TestLockFailureModel(val name: String = "default")
 
-@SingleCacheEntity("TestGetObserverModel")
+@SingleCacheEntity("TestGetObserverModel", multiProcess = true)
 data class TestGetObserverModel(val name: String = "default")

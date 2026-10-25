@@ -14,7 +14,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import java.util.concurrent.atomic.AtomicInteger
 
-/** memoryCache=false的仅磁盘缓存 */
+/** 多进程模式下memoryCache=false的仅磁盘缓存，单进程模式见[SingleProcessSingleCacheTest] */
 @RunWith(AndroidJUnit4::class)
 class DiskSingleCacheTest {
   /** 每次返回新实例，并调用一次getDefault */
@@ -221,56 +221,56 @@ private const val DISK_PRODUCE_FILE_FAILURE_MODEL_ID = "TestDiskProduceFileFailu
 @SingleCacheEntity("TestDiskInstanceModel")
 data class TestDiskInstanceModel(val name: String = "default")
 
-@SingleCacheEntity("TestDiskDefaultModel")
+@SingleCacheEntity("TestDiskDefaultModel", multiProcess = true)
 data class TestDiskDefaultModel(val name: String = "default")
 
-@SingleCacheEntity(DISK_READ_MODEL_ID)
+@SingleCacheEntity(DISK_READ_MODEL_ID, multiProcess = true)
 data class TestDiskReadModel(val name: String = "default")
 
-@SingleCacheEntity("TestDiskFlowModel")
+@SingleCacheEntity("TestDiskFlowModel", multiProcess = true)
 data class TestDiskFlowModel(val name: String = "default")
 
-@SingleCacheEntity("TestDiskCounterModel")
+@SingleCacheEntity("TestDiskCounterModel", multiProcess = true)
 data class TestDiskCounterModel(val count: Int = 0)
 
-@SingleCacheEntity("TestDiskMixedModel")
+@SingleCacheEntity("TestDiskMixedModel", multiProcess = true)
 data class TestDiskMixedModel(val name: String = "default")
 
-@SingleCacheEntity(DISK_DELETE_UNDECODABLE_MODEL_ID)
+@SingleCacheEntity(DISK_DELETE_UNDECODABLE_MODEL_ID, multiProcess = true)
 data class TestDiskDeleteUndecodableModel(val name: String = "default")
 
-@SingleCacheEntity(DISK_REPLACE_FAILURE_MODEL_ID)
+@SingleCacheEntity(DISK_REPLACE_FAILURE_MODEL_ID, multiProcess = true)
 data class TestDiskReplaceFailureModel(val name: String = "default")
 
-@SingleCacheEntity("TestDiskNullValueModel")
+@SingleCacheEntity("TestDiskNullValueModel", multiProcess = true)
 data class TestDiskNullValueModel(
   val name: String? = "default",
   val tags: Map<String, String?> = mapOf("key" to "default"),
 )
 
-@SingleCacheEntity(DISK_READ_RECOVER_MODEL_ID)
+@SingleCacheEntity(DISK_READ_RECOVER_MODEL_ID, multiProcess = true)
 data class TestDiskReadRecoverModel(val name: String = "default")
 
-@SingleCacheEntity(DISK_LOCKED_RECOVER_MODEL_ID)
+@SingleCacheEntity(DISK_LOCKED_RECOVER_MODEL_ID, multiProcess = true)
 data class TestDiskLockedRecoverModel(val name: String = "default")
 
-@SingleCacheEntity(DISK_DIRECTORY_FAILURE_MODEL_ID)
+@SingleCacheEntity(DISK_DIRECTORY_FAILURE_MODEL_ID, multiProcess = true)
 data class TestDiskDirectoryFailureModel(val name: String = "default")
 
-@SingleCacheEntity(DISK_PRODUCE_FILE_FAILURE_MODEL_ID)
+@SingleCacheEntity(DISK_PRODUCE_FILE_FAILURE_MODEL_ID, multiProcess = true)
 data class TestDiskProduceFileFailureModel(val name: String = "default")
 
-@SingleCacheEntity("TestDiskBlockedUpdateModel")
+@SingleCacheEntity("TestDiskBlockedUpdateModel", multiProcess = true)
 data class TestDiskBlockedUpdateModel(val count: Int = 0)
 
-@SingleCacheEntity("TestDiskBlockedReadModel")
+@SingleCacheEntity("TestDiskBlockedReadModel", multiProcess = true)
 data class TestDiskBlockedReadModel(val name: String = "default")
 
-@SingleCacheEntity("TestDiskCollectorCounterModel")
+@SingleCacheEntity("TestDiskCollectorCounterModel", multiProcess = true)
 data class TestDiskCollectorCounterModel(val name: String = "default")
 
-@SingleCacheEntity(DISK_LOCK_FAILURE_MODEL_ID)
+@SingleCacheEntity(DISK_LOCK_FAILURE_MODEL_ID, multiProcess = true)
 data class TestDiskLockFailureModel(val name: String = "default")
 
-@SingleCacheEntity("TestDiskGetObserverModel")
+@SingleCacheEntity("TestDiskGetObserverModel", multiProcess = true)
 data class TestDiskGetObserverModel(val name: String = "default")
