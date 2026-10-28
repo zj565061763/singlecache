@@ -75,7 +75,8 @@ data class UserProfile(val name: String = "")
 - 解码失败视为无缓存，`update` 可以覆盖或删除。
 - 字段从可空改为不可空后，旧缓存里这个字段为 `null` 时整个缓存解码失败。
 - 读取失败时 `flow` 保留当前值，首次读取失败发射默认值；缓存下一次变化时重新读取。
-- 数据目录创建失败时，`flow` 每 10 秒重新读取一次，每次失败都会回调 `ExceptionHandler`。
+- 数据目录创建失败时，`update` 返回 `false`，读取得到默认值。
+- 开启多进程时，数据目录创建失败也会让读取失败，`flow` 每 10 秒重新读取一次，每次失败都会回调 `ExceptionHandler`。
 - `@SingleCacheEntity` 缺失或 `id` 非法（空白、含非法 UTF-16）时，取得实例立即抛 `IllegalArgumentException`。
 - 多个类型使用同一个 `id` 时，取得实例立即抛 `IllegalArgumentException`。
 - 实体类带泛型参数（如 `Box<T>`）时，取得实例立即抛 `IllegalArgumentException`。

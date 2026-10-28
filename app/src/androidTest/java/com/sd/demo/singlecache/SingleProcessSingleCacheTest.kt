@@ -12,6 +12,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -151,6 +152,17 @@ class SingleProcessSingleCacheTest {
   fun testNoMultiProcessFilesDisk() = runBlocking {
     assertNoMultiProcessFiles(SP_DISK_NO_MULTI_PROCESS_FILES_MODEL_ID, singleCache(memoryCache = false) { SpDiskNoMultiProcessFilesModel() }, SpDiskNoMultiProcessFilesModel(count = 1))
   }
+
+  /** 数据目录创建失败时读取返回默认值且不上报异常，写入失败，目录恢复后能正常写入 */
+  @Test
+  fun testDirectoryFailure() = runBlocking {
+    assertDirectoryFailure(SP_DIRECTORY_FAILURE_MODEL_ID, singleCache { SpDirectoryFailureModel() })
+  }
+
+  @Test
+  fun testDirectoryFailureDisk() = runBlocking {
+    assertDirectoryFailure(SP_DISK_DIRECTORY_FAILURE_MODEL_ID, singleCache(memoryCache = false) { SpDiskDirectoryFailureModel() })
+  }
 }
 
 private suspend fun <T : SingleProcessCounter<T>> assertUpdateAndGet(cache: SingleCache<T>) {
@@ -202,6 +214,25 @@ private suspend fun <T : SingleProcessCounter<T>> assertRapidUpdate(cache: Singl
   }
 }
 
+/** 会清空数据目录，用普通文件占住目录的路径来模拟创建失败 */
+private suspend fun <T : SingleProcessCounter<T>> assertDirectoryFailure(id: String, cache: SingleCache<T>) {
+  val directory = singleCacheFile(id).parentFile!!
+  assertTrue(directory.deleteRecursively())
+  assertTrue(directory.createNewFile())
+  try {
+    CacheErrors.clear()
+    assertEquals(0, cache.get().count)
+    assertTrue(CacheErrors.list().isEmpty())
+
+    assertEquals(false, cache.update { it.withCount(1) })
+    assertTrue(CacheErrors.list().isNotEmpty())
+  } finally {
+    if (directory.isFile) directory.delete()
+  }
+  assertEquals(true, cache.update { it.withCount(1) })
+  assertEquals(1, cache.get().count)
+}
+
 /** 单进程测试的计数模型 */
 interface SingleProcessCounter<T : SingleProcessCounter<T>> {
   val count: Int
@@ -218,6 +249,8 @@ private const val SP_READ_RECOVER_MODEL_ID = "SpReadRecoverModel"
 private const val SP_DISK_READ_RECOVER_MODEL_ID = "SpDiskReadRecoverModel"
 private const val SP_NO_MULTI_PROCESS_FILES_MODEL_ID = "SpNoMultiProcessFilesModel"
 private const val SP_DISK_NO_MULTI_PROCESS_FILES_MODEL_ID = "SpDiskNoMultiProcessFilesModel"
+private const val SP_DIRECTORY_FAILURE_MODEL_ID = "SpDirectoryFailureModel"
+private const val SP_DISK_DIRECTORY_FAILURE_MODEL_ID = "SpDiskDirectoryFailureModel"
 
 @SingleCacheEntity("SpUpdateModel")
 data class SpUpdateModel(override val count: Int = 0) : SingleProcessCounter<SpUpdateModel> {
@@ -314,3 +347,13 @@ data class SpNoMultiProcessFilesModel(val count: Int = 0)
 
 @SingleCacheEntity(SP_DISK_NO_MULTI_PROCESS_FILES_MODEL_ID)
 data class SpDiskNoMultiProcessFilesModel(val count: Int = 0)
+
+@SingleCacheEntity(SP_DIRECTORY_FAILURE_MODEL_ID)
+data class SpDirectoryFailureModel(override val count: Int = 0) : SingleProcessCounter<SpDirectoryFailureModel> {
+  override fun withCount(count: Int) = copy(count = count)
+}
+
+@SingleCacheEntity(SP_DISK_DIRECTORY_FAILURE_MODEL_ID)
+data class SpDiskDirectoryFailureModel(override val count: Int = 0) : SingleProcessCounter<SpDiskDirectoryFailureModel> {
+  override fun withCount(count: Int) = copy(count = count)
+}
