@@ -26,6 +26,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import java.io.File
 import java.io.FileNotFoundException
@@ -392,6 +393,27 @@ suspend fun <T> assertNoMultiProcessFiles(id: String, cache: SingleCache<T>, val
   assertEquals(value, cache.get())
   assertEquals(false, lockFile.exists())
   assertEquals(false, versionFile.exists())
+}
+
+/** 实体的构造函数或getter读到这个值时抛出[TestEntityError] */
+const val ENTITY_ERROR_NAME = "error"
+
+/** 实体抛出的JVM [Error] */
+class TestEntityError : Error()
+
+/** 解码时构造函数抛出的[TestEntityError]被反射包装后，[SingleCache.get]仍要抛出它，不能交给ExceptionHandler */
+fun assertConstructorErrorThrown(id: String, cache: SingleCache<*>) {
+  writeCacheFileDirectly(id, """{"name":"$ENTITY_ERROR_NAME"}""")
+  CacheErrors.clear()
+  assertThrows(TestEntityError::class.java) { runBlocking { cache.get() } }
+  assertTrue(CacheErrors.list().isEmpty())
+}
+
+/** 编码时getter抛出的[TestEntityError]被反射包装后，[SingleCache.update]仍要抛出它，不能交给ExceptionHandler */
+fun <T> assertGetterErrorThrown(cache: SingleCache<T>, value: T) {
+  CacheErrors.clear()
+  assertThrows(TestEntityError::class.java) { runBlocking { cache.update { value } } }
+  assertTrue(CacheErrors.list().isEmpty())
 }
 
 /**

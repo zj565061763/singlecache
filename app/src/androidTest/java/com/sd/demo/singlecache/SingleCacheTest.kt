@@ -322,6 +322,18 @@ class SingleCacheTest {
     }
   }
 
+  /** 构造函数抛出的Error被反射包装后仍然抛出 */
+  @Test
+  fun testConstructorError() {
+    assertConstructorErrorThrown(CONSTRUCTOR_ERROR_MODEL_ID, singleCache { TestConstructorErrorModel() })
+  }
+
+  /** getter抛出的Error被反射包装后仍然抛出 */
+  @Test
+  fun testGetterError() {
+    assertGetterErrorThrown(singleCache { TestGetterErrorModel() }, TestGetterErrorModel().apply { name = ENTITY_ERROR_NAME })
+  }
+
   @Test
   fun testDuplicateId() {
     SingleCache.get(TestDuplicateIdModelA::class.java) { TestDuplicateIdModelA() }
@@ -359,6 +371,7 @@ private const val DIRECTORY_FAILURE_MODEL_ID = "TestDirectoryFailureModel"
 private const val PRODUCE_FILE_FAILURE_MODEL_ID = "TestProduceFileFailureModel"
 private const val LOCK_FAILURE_MODEL_ID = "TestLockFailureModel"
 private const val DUPLICATE_MODEL_ID = "TestDuplicateIdModel"
+private const val CONSTRUCTOR_ERROR_MODEL_ID = "TestConstructorErrorModel"
 
 @SingleCacheEntity("TestUpdateModel", multiProcess = true)
 data class TestUpdateModel(val name: String = "default")
@@ -450,3 +463,16 @@ data class TestLockFailureModel(val name: String = "default")
 
 @SingleCacheEntity("TestGetObserverModel", multiProcess = true)
 data class TestGetObserverModel(val name: String = "default")
+
+@SingleCacheEntity(CONSTRUCTOR_ERROR_MODEL_ID, multiProcess = true)
+data class TestConstructorErrorModel(val name: String = "default") {
+  init {
+    if (name == ENTITY_ERROR_NAME) throw TestEntityError()
+  }
+}
+
+@SingleCacheEntity("TestGetterErrorModel", multiProcess = true)
+class TestGetterErrorModel {
+  var name: String = "default"
+    get() = if (field == ENTITY_ERROR_NAME) throw TestEntityError() else field
+}

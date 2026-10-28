@@ -3,6 +3,8 @@ package com.sd.lib.singlecache
 import android.annotation.SuppressLint
 import android.content.Context
 import java.io.File
+import java.lang.reflect.InvocationTargetException
+import java.lang.reflect.UndeclaredThrowableException
 
 /** 单值缓存全局配置 */
 class SingleCacheConfig private constructor(
@@ -72,7 +74,7 @@ inline fun SingleCacheConfig.Companion.init(
   )
 }
 
-/** 把[error]转给[SingleCacheConfig.ExceptionHandler]，JVM[Error]继续抛出 */
+/** 把[error]转给[SingleCacheConfig.ExceptionHandler]，JVM[Error]继续抛出，包括被反射包装的 */
 internal fun reportException(error: Throwable) {
   SingleCacheConfig.get().exceptionHandler.onException(error)
 }
@@ -81,7 +83,20 @@ internal class LibExceptionHandler(
   private val handler: SingleCacheConfig.ExceptionHandler?,
 ) : SingleCacheConfig.ExceptionHandler {
   override fun onException(error: Throwable) {
-    if (error is Error) throw error
+    val target = error.unwrapReflection()
+    if (target is Error) throw target
     handler?.onException(error)
+  }
+}
+
+/** 解开反射调用的包装，Moshi调用实体的构造函数或getter时会把其中的异常包成[InvocationTargetException] */
+private fun Throwable.unwrapReflection(): Throwable {
+  var error = this
+  while (true) {
+    error = when (error) {
+      is InvocationTargetException -> error.targetException ?: return error
+      is UndeclaredThrowableException -> error.undeclaredThrowable ?: return error
+      else -> return error
+    }
   }
 }

@@ -153,6 +153,18 @@ class SingleProcessSingleCacheTest {
     assertNoMultiProcessFiles(SP_DISK_NO_MULTI_PROCESS_FILES_MODEL_ID, singleCache(memoryCache = false) { SpDiskNoMultiProcessFilesModel() }, SpDiskNoMultiProcessFilesModel(count = 1))
   }
 
+  /** 构造函数抛出的Error被反射包装后仍然抛出 */
+  @Test
+  fun testConstructorError() {
+    assertConstructorErrorThrown(SP_CONSTRUCTOR_ERROR_MODEL_ID, singleCache { SpConstructorErrorModel() })
+  }
+
+  /** getter抛出的Error被反射包装后仍然抛出 */
+  @Test
+  fun testGetterError() {
+    assertGetterErrorThrown(singleCache { SpGetterErrorModel() }, SpGetterErrorModel().apply { name = ENTITY_ERROR_NAME })
+  }
+
   /** 数据目录创建失败时读取返回默认值且不上报异常，写入失败，目录恢复后能正常写入 */
   @Test
   fun testDirectoryFailure() = runBlocking {
@@ -250,6 +262,7 @@ private const val SP_DISK_READ_RECOVER_MODEL_ID = "SpDiskReadRecoverModel"
 private const val SP_NO_MULTI_PROCESS_FILES_MODEL_ID = "SpNoMultiProcessFilesModel"
 private const val SP_DISK_NO_MULTI_PROCESS_FILES_MODEL_ID = "SpDiskNoMultiProcessFilesModel"
 private const val SP_DIRECTORY_FAILURE_MODEL_ID = "SpDirectoryFailureModel"
+private const val SP_CONSTRUCTOR_ERROR_MODEL_ID = "SpConstructorErrorModel"
 private const val SP_DISK_DIRECTORY_FAILURE_MODEL_ID = "SpDiskDirectoryFailureModel"
 
 @SingleCacheEntity("SpUpdateModel")
@@ -356,4 +369,17 @@ data class SpDirectoryFailureModel(override val count: Int = 0) : SingleProcessC
 @SingleCacheEntity(SP_DISK_DIRECTORY_FAILURE_MODEL_ID)
 data class SpDiskDirectoryFailureModel(override val count: Int = 0) : SingleProcessCounter<SpDiskDirectoryFailureModel> {
   override fun withCount(count: Int) = copy(count = count)
+}
+
+@SingleCacheEntity(SP_CONSTRUCTOR_ERROR_MODEL_ID)
+data class SpConstructorErrorModel(val name: String = "default") {
+  init {
+    if (name == ENTITY_ERROR_NAME) throw TestEntityError()
+  }
+}
+
+@SingleCacheEntity("SpGetterErrorModel")
+class SpGetterErrorModel {
+  var name: String = "default"
+    get() = if (field == ENTITY_ERROR_NAME) throw TestEntityError() else field
 }

@@ -110,6 +110,7 @@ val diskCache = singleCache(memoryCache = false) { UserProfile() } // 仅磁盘�
 - hashCode 和 equals 基于对象身份的类，修改后返回同一个对象时新旧值相等，不写盘，`update` 返回 `true`。
 - 缺少注解、实体类带泛型参数、`id` 非法或重复时，取得实例立即抛 `IllegalArgumentException`。
 - `id` 重复、内部配置错误和所有 JVM `Error` 必须继续抛出，不能降级。
+- Moshi 通过反射调用实体的构造函数和 getter，其中抛出的 `Error` 会被包成 `InvocationTargetException`，`LibExceptionHandler` 先解开反射包装再判断。
 - DataStore 的 scope 带 `CoroutineExceptionHandler`，内部协程没有处理的异常交给 `ExceptionHandler`，不能让进程崩溃。
 - 接入方的 `ExceptionHandler` 自己抛出的异常不拦截，在 DataStore 内部协程里会让进程崩溃；公开文档已要求回调不抛异常。
 - 多进程模式下，订阅期间收到文件变化后拿锁失败，异常交给 `ExceptionHandler`，文件监听继续。
@@ -145,9 +146,9 @@ val diskCache = singleCache(memoryCache = false) { UserProfile() } // 仅磁盘�
 
 | 测试类 | 覆盖范围 |
 |---|---|
-| `SingleCacheTest` | 多进程模式：读写、删除、挂起的 block、阻塞调用方线程时不死锁、新实例共用 DataStore、Flow、并发更新、解码失败、非法 UTF-8、删除无法解码的缓存、替换文件失败不缓存新值、null 值读写、不可空字段读到 null、读取失败、锁被占用时恢复读取、数据目录创建失败后恢复、计算缓存文件路径失败后恢复、并发取消订阅后的订阅计数和文件监听、读取不启动文件监听、订阅期间拿锁失败不崩溃且继续监听、非法 UTF-16、配置错误、泛型实体 |
+| `SingleCacheTest` | 多进程模式：读写、删除、挂起的 block、阻塞调用方线程时不死锁、新实例共用 DataStore、Flow、并发更新、解码失败、非法 UTF-8、删除无法解码的缓存、替换文件失败不缓存新值、null 值读写、不可空字段读到 null、读取失败、锁被占用时恢复读取、数据目录创建失败后恢复、计算缓存文件路径失败后恢复、并发取消订阅后的订阅计数和文件监听、读取不启动文件监听、订阅期间拿锁失败不崩溃且继续监听、非法 UTF-16、配置错误、泛型实体、构造函数和 getter 抛出的 Error 继续抛出 |
 | `DiskSingleCacheTest` | 多进程模式的仅磁盘缓存：实例和默认值、释放后重新读盘、Flow、并发更新、与内存缓存混用、删除无法解码的缓存、替换文件失败不缓存新值、null 值读写、读取失败后的写入、锁被占用时恢复读取、数据目录创建失败后恢复、计算缓存文件路径失败后恢复、并发取消订阅后的订阅计数和文件监听、读取不启动文件监听、订阅期间拿锁失败不崩溃且继续监听、阻塞调用方线程时不死锁 |
-| `SingleProcessSingleCacheTest` | 单进程模式，内存缓存和仅磁盘缓存：读写、删除、Flow、并发更新、快速连续更新、释放后重新读盘、两种模式混用、删除无法解码的缓存、null 值读写、替换文件失败不缓存新值、读取失败后的写入、阻塞调用方线程时不死锁、不注册文件监听且不生成锁文件和版本文件、数据目录创建失败时读取返回默认值且写入失败 |
+| `SingleProcessSingleCacheTest` | 单进程模式，内存缓存和仅磁盘缓存：读写、删除、Flow、并发更新、快速连续更新、释放后重新读盘、两种模式混用、删除无法解码的缓存、null 值读写、替换文件失败不缓存新值、读取失败后的写入、阻塞调用方线程时不死锁、不注册文件监听且不生成锁文件和版本文件、数据目录创建失败时读取返回默认值且写入失败、构造函数和 getter 抛出的 Error 继续抛出 |
 | `MultiProcessSingleCacheTest` | 两种模式的跨进程并发更新和更新通知、无订阅者读取 |
 
 - 文件监听和 IO 用的是真实时间，所以使用 `runBlocking`、`TEST_TIMEOUT`（15 秒）和 `awaitItemUntil`，不要换成虚拟时间的 `runTest`。
