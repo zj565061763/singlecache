@@ -164,7 +164,9 @@ val diskCache = singleCache(memoryCache = false) { UserProfile() } // 仅磁盘�
 - README、CHANGELOG 和公开 API 的 KDoc 只写使用者关心的行为和约束，不写锁、版本号、文件监听、DataStore 等内部实现；内部细节记录在 AGENTS.md。
 - 依赖版本统一放入版本目录。
 - 修改 `@SingleCacheEntity` 或反射模型时，同时检查 `consumer-rules.pro`。
-- 混淆规则只保留实体类本身，嵌套类和枚举由接入方保留（见 README）。
+- 混淆规则保留实体类及其直接父类，嵌套类、枚举和更上层的父类由接入方保留（见 README）。
+- 父类没保留时，R8 重命名字段并去掉 Kotlin 元数据，Moshi 写入时跳过父类属性，不报错。
+- 直接父类用 `-if ... extends **` 加 `-keep class <2>` 保留；`-if` 不能逐层匹配，已在开启 R8 的模拟器上验证祖父类的属性仍会丢失。
 - 示例 app 没开混淆，测试覆盖不到混淆相关的问题。
 - 提交信息格式为 `type(scope): 中文描述`，例如 `fix(lib): 读取失败时保留当前值`。
 - 一个提交只处理一个主题。
