@@ -115,6 +115,7 @@ val diskCache = singleCache(memoryCache = false) { UserProfile() } // 仅磁盘�
 - 接入方的 `ExceptionHandler` 自己抛出的异常不拦截，在 DataStore 内部协程里会让进程崩溃；公开文档已要求回调不抛异常。
 - 多进程模式下，订阅期间收到文件变化后拿锁失败，异常交给 `ExceptionHandler`，文件监听继续。
 - 拿锁失败的那次变化不重试，等下一次文件事件、本进程的 `get()` 或 `update` 才读到。
+- 多进程模式下，通知重读拿锁失败后，无改动的 `update` 可能无法恢复现有订阅；保持上游行为，暂不修复，审查时不要列为缺陷。
 
 ## 文件格式
 
