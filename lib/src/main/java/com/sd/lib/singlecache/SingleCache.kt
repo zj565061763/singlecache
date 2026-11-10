@@ -67,11 +67,10 @@ interface SingleCache<T> {
       return store as SingleCacheStore<T>
     }
 
+    /** 绑定缓存id，调用方须持有[sStores]的锁 */
     private fun bindId(id: String, clazz: Class<*>) {
-      synchronized(sIdClasses) {
-        val boundClass = sIdClasses.getOrPut(id) { clazz }
-        require(boundClass == clazz) { "id:${id} has bound to ${boundClass.name} when bind ${clazz.name}" }
-      }
+      val boundClass = sIdClasses.getOrPut(id) { clazz }
+      require(boundClass == clazz) { "id:${id} has bound to ${boundClass.name} when bind ${clazz.name}" }
     }
   }
 }
