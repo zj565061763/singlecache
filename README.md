@@ -47,7 +47,7 @@ cache.update { null }                      // 删除，之后读到默认值
 
 # 多进程
 
-默认只支持单进程，多个进程读写同一缓存时，在实体上开启 `multiProcess`：
+默认单进程，如果需要支持多进程，在对应的实体上开启 `multiProcess`：
 
 ```kotlin
 @SingleCacheEntity(id = "UserProfile", multiProcess = true)
