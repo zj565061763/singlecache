@@ -177,6 +177,6 @@ val diskCache = singleCache(memoryCache = false) { UserProfile() } // 仅磁盘�
 - 示例 app 没开混淆，测试覆盖不到混淆相关的问题。
 - 提交信息格式为 `type(scope): 中文描述`，例如 `fix(lib): 读取失败时保留当前值`。
 - 一个提交只处理一个主题。
-- 公开 API 或磁盘格式变化，必须在 `CHANGELOG.md` 写迁移说明。
-- 发布前同步 `VERSION_NAME`、变更日志和 Maven 配置。
+- 首次正式发布前不维护变更日志；正式发布后，公开 API 或磁盘格式变化必须在 `CHANGELOG.md` 写迁移说明。
+- 发布前同步 `VERSION_NAME` 和 Maven 配置，正式发布后还要同步变更日志。
 - 不要提交签名密钥、仓库凭据、`local.properties` 或 `build/` 产物。
