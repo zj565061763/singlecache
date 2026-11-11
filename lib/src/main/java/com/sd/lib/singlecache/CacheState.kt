@@ -5,19 +5,19 @@ import java.io.InputStream
 import java.io.OutputStream
 
 /** 保存在DataStore中的缓存状态 */
-internal sealed interface CacheState<out T> {
+internal sealed interface CacheState<out T : Any> {
   /** 无缓存 */
   data object Absent : CacheState<Nothing>
 
   /** 有缓存 */
-  data class Present<T>(val value: T) : CacheState<T>
+  data class Present<T : Any>(val value: T) : CacheState<T>
 
   /** 无法解码，读取时视为无缓存；与[Absent]区分，删除时新旧值不相等才会写入空文件 */
   data object Undecodable : CacheState<Nothing>
 }
 
 /** [CacheState]序列化器，空文件表示[CacheState.Absent]，无法解码表示[CacheState.Undecodable] */
-internal class CacheStateSerializer<T>(
+internal class CacheStateSerializer<T : Any>(
   private val clazz: Class<T>,
 ) : Serializer<CacheState<T>> {
   override val defaultValue: CacheState<T>

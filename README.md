@@ -63,6 +63,7 @@ data class UserProfile(val name: String = "")
 
 # 行为
 
+- 实体类型和默认值必须非空，实体内部的字段可以为 `null`；`update { null }` 表示删除缓存。
 - `block` 是挂起函数，在 `Dispatchers.IO` 上执行。
 - `block` 抛出的异常原样抛给调用方。
 - 不要在 `block` 里更新缓存：更新同一个缓存会返回 `false`，交叉更新不同的缓存会死锁。

@@ -54,6 +54,7 @@ val diskCache = singleCache(memoryCache = false) { UserProfile() } // 仅磁盘�
 - 开关放在注解上：同一类型的实例共用一个 DataStore，各进程读到同一个类声明，模式天然一致。
 - 实体类不能带泛型参数：`T::class.java` 丢失类型实参，Moshi 无法序列化，不同实参还会共用同一个缓存文件。
 - 每次调用都返回新实例，并调用一次 `getDefault`；同一类型的实例共用一个 `SingleCacheStore`。
+- 实体类型约束为 `T : Any`，`getDefault` 返回 `null` 时创建实例立即抛出 `IllegalArgumentException`；实体内部的字段可以为 `null`。
 - `memoryCache=true`（默认）：内存值一直保留。
 - `memoryCache=false`：没有使用者时释放内存值。
 - `update` 的 lambda 返回 `null` 表示删除，之后读到默认值。
@@ -151,7 +152,7 @@ val diskCache = singleCache(memoryCache = false) { UserProfile() } // 仅磁盘�
 | `DiskSingleCacheTest` | 多进程模式的仅磁盘缓存：实例和默认值、释放后重新读盘、Flow、并发更新、与内存缓存混用、删除无法解码的缓存、替换文件失败不缓存新值、null 值读写、读取失败后的写入、锁被占用时恢复读取、数据目录创建失败后恢复、计算缓存文件路径失败后恢复、并发取消订阅后的订阅计数和文件监听、读取不启动文件监听、订阅期间拿锁失败不崩溃且继续监听、阻塞调用方线程时不死锁 |
 | `SingleProcessSingleCacheTest` | 单进程模式，内存缓存和仅磁盘缓存：读写、删除、Flow、并发更新、快速连续更新、释放后重新读盘、两种模式混用、删除无法解码的缓存、null 值读写、替换文件失败不缓存新值、读取失败后的写入、阻塞调用方线程时不死锁、不注册文件监听且不生成锁文件和版本文件、数据目录创建失败时读取返回默认值且写入失败、构造函数和 getter 抛出的 Error 继续抛出 |
 | `MultiProcessSingleCacheTest` | 两种模式的跨进程并发更新和更新通知、无订阅者读取 |
-| `SingleCacheJavaTest` | Java 静态入口、默认参数重载和原有 Companion 入口 |
+| `SingleCacheJavaTest` | Java 静态入口、默认参数重载、原有 Companion 入口和空默认值校验 |
 
 - 文件监听和 IO 用的是真实时间，所以使用 `runBlocking`、`TEST_TIMEOUT`（15 秒）和 `awaitItemUntil`，不要换成虚拟时间的 `runTest`。
 - 新增测试模型使用唯一的 `id`。

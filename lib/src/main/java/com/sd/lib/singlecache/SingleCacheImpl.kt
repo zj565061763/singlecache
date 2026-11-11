@@ -19,7 +19,7 @@ import kotlin.coroutines.cancellation.CancellationException
 /** 数据目录不存在时，读取失败后重读的间隔 */
 private const val RETRY_DELAY_MILLIS = 10_000L
 
-internal class SingleCacheImpl<T>(
+internal class SingleCacheImpl<T : Any>(
   private val store: SingleCacheStore<T>,
   private val defaultCache: T,
 ) : SingleCache<T> {

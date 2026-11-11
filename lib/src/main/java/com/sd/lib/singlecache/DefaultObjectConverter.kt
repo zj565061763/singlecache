@@ -16,12 +16,12 @@ internal object DefaultObjectConverter {
     .addLast(KotlinJsonAdapterFactory())
     .build()
 
-  fun <T> encode(value: T, clazz: Class<T>): ByteArray {
+  fun <T : Any> encode(value: T, clazz: Class<T>): ByteArray {
     // 写出null，否则可空字段的默认值不是null时，读回来会变成默认值
     return _moshi.adapter(clazz).serializeNulls().toJson(value).toByteArray()
   }
 
-  fun <T> decode(bytes: ByteArray, clazz: Class<T>): T {
+  fun <T : Any> decode(bytes: ByteArray, clazz: Class<T>): T {
     return checkNotNull(
       _moshi.adapter(clazz).fromJson(bytes.decodeToString(throwOnInvalidSequence = true)),
     )

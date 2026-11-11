@@ -4,7 +4,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 
 /** 单值缓存，每个实体类型只保存一个值，[SingleCacheEntity.multiProcess]为true时支持多进程读写 */
-interface SingleCache<T> {
+interface SingleCache<T : Any> {
 
   /** 缓存流，缓存变化时发射最新值 */
   val flow: Flow<T>
@@ -32,13 +32,14 @@ interface SingleCache<T> {
     /**
      * 获取[clazz]对应的[SingleCache]，每次调用返回新实例并调用一次[getDefault]。
      * 同一类型的所有实例共用同一份缓存，互相能读到对方的更新。
+     * 默认值为null时立即抛出[IllegalArgumentException]。
      *
      * @param memoryCache 是否在内存中保留最新值，为false时没有使用者就释放内存，下次读取重新读盘
-     * @param getDefault 默认缓存，创建实例时同步调用，只构造简单对象，不要在里面访问缓存
+     * @param getDefault 非空默认缓存，创建实例时同步调用，只构造简单对象，不要在里面访问缓存
      */
     @JvmStatic
     @JvmOverloads
-    fun <T> get(
+    fun <T : Any> get(
       clazz: Class<T>,
       memoryCache: Boolean = true,
       getDefault: () -> T,
@@ -46,13 +47,13 @@ interface SingleCache<T> {
       val store = getStore(clazz)
       return SingleCacheImpl(
         store = store,
-        defaultCache = getDefault(),
+        defaultCache = requireNotNull(getDefault()) { "getDefault must return a non-null value" },
       ).also {
         if (memoryCache) store.retainInMemory()
       }
     }
 
-    private fun <T> getStore(clazz: Class<T>): SingleCacheStore<T> {
+    private fun <T : Any> getStore(clazz: Class<T>): SingleCacheStore<T> {
       val store = synchronized(sStores) {
         sStores.getOrPut(clazz) {
           val config = SingleCacheConfig.get()
@@ -79,7 +80,7 @@ interface SingleCache<T> {
 }
 
 /** 参考[SingleCache.Companion.get] */
-inline fun <reified T> singleCache(
+inline fun <reified T : Any> singleCache(
   memoryCache: Boolean = true,
   noinline getDefault: () -> T,
 ): SingleCache<T> {

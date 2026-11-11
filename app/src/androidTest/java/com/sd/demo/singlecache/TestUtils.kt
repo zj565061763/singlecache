@@ -91,7 +91,7 @@ inline fun <R> withoutReadPermission(file: File, block: () -> R): R {
  * 读取失败上报异常时立即写入[newContent]，这时订阅者还没开始监听文件。
  * 订阅者先收到[defaultValue]，然后要能收到这次写入的[newValue]。
  */
-suspend fun <T> assertReceiveWriteRightAfterReadFailure(
+suspend fun <T : Any> assertReceiveWriteRightAfterReadFailure(
   id: String,
   cache: SingleCache<T>,
   defaultValue: T,
@@ -122,7 +122,7 @@ suspend fun <T> assertReceiveWriteRightAfterReadFailure(
  *
  * 会清空数据目录，用普通文件占住目录的路径来模拟创建失败。
  */
-suspend fun <T> assertRecoverAfterDirectoryFailure(
+suspend fun <T : Any> assertRecoverAfterDirectoryFailure(
   id: String,
   cache: SingleCache<T>,
   defaultValue: T,
@@ -163,7 +163,7 @@ suspend fun <T> assertRecoverAfterDirectoryFailure(
  *
  * 全局配置的数据目录计算过一次就不再变化，所以通过反射创建缓存，用会失败的produceFile模拟。
  */
-suspend fun <T> assertRecoverAfterProduceFileFailure(
+suspend fun <T : Any> assertRecoverAfterProduceFileFailure(
   id: String,
   clazz: Class<T>,
   memoryCache: Boolean,
@@ -192,7 +192,7 @@ suspend fun <T> assertRecoverAfterProduceFileFailure(
  * 读取失败后，恢复读取时锁被[SingleCache.update]占用，订阅者不能反复重读并上报异常。
  * 这时DataStore会先发射不加锁读到的值，再抛出上次缓存的异常。
  */
-suspend fun <T> assertNoBusyRetryWhileLocked(
+suspend fun <T : Any> assertNoBusyRetryWhileLocked(
   id: String,
   cache: SingleCache<T>,
   value: T,
@@ -249,7 +249,7 @@ suspend fun <T> assertNoBusyRetryWhileLocked(
  * 调用方的线程上还有进行中的[SingleCache.update]时，在这个线程上用runBlocking同步更新和读取不能死锁。
  * 用单线程调度器模拟主线程。
  */
-suspend fun <T> assertNoDeadlockUpdatingOnBlockedThread(cache: SingleCache<T>, transform: (T) -> T) {
+suspend fun <T : Any> assertNoDeadlockUpdatingOnBlockedThread(cache: SingleCache<T>, transform: (T) -> T) {
   withSingleThread {
     // 立即进入DataStore的队列，如果block要回到这个线程执行就会死锁
     val job = launch(start = CoroutineStart.UNDISPATCHED) { assertEquals(true, cache.update { transform(it) }) }
@@ -268,7 +268,7 @@ suspend fun <T> assertNoDeadlockUpdatingOnBlockedThread(cache: SingleCache<T>, t
  * 用单线程调度器模拟主线程，通过反射占住SingleCacheStore的锁。
  * 释放后锁会交给最先等待的协程，如果它在调用方的线程上等锁，就要回到这个线程才能继续，和runBlocking互相等待。
  */
-suspend fun <T> assertNoDeadlockReadingOnBlockedThread(cache: SingleCache<T>) {
+suspend fun <T : Any> assertNoDeadlockReadingOnBlockedThread(cache: SingleCache<T>) {
   val mutex = cache.storeMutex()
   assertTrue(mutex.tryLock())
   thread {
@@ -289,7 +289,7 @@ suspend fun <T> assertNoDeadlockReadingOnBlockedThread(cache: SingleCache<T>) {
  * 订阅期间并发取flow的首个值，每轮结束后只剩这一个订阅者。
  * 不能用get()代替，它不计入订阅计数。
  */
-suspend fun <T> assertCollectorCounterAfterConcurrentCancel(cache: SingleCache<T>) = coroutineScope {
+suspend fun <T : Any> assertCollectorCounterAfterConcurrentCancel(cache: SingleCache<T>) = coroutineScope {
   cache.flow.test(timeout = TEST_TIMEOUT) {
     awaitItem()
     // 收到首个值之后才计数
@@ -317,7 +317,7 @@ suspend fun <T> assertCollectorCounterAfterConcurrentCancel(cache: SingleCache<T
  * 没有订阅者时读取不能启动DataStore的文件监听，否则每次读取都要注册和释放监听。
  * 并发读取期间反复检查订阅计数和监听数量。
  */
-suspend fun <T> assertGetNotObservingFile(cache: SingleCache<T>) = coroutineScope {
+suspend fun <T : Any> assertGetNotObservingFile(cache: SingleCache<T>) = coroutineScope {
   // 监听是进程级的，先等其他测试遗留的监听释放
   withTimeout(TEST_TIMEOUT) { while (fileObserverCount() != 0) delay(10) }
   val reads = List(16) {
@@ -335,7 +335,7 @@ suspend fun <T> assertGetNotObservingFile(cache: SingleCache<T>) = coroutineScop
  * 恢复后要继续监听，订阅者能收到外部写入的[newValue]。
  * 把锁文件改成只读来模拟拿锁失败。
  */
-suspend fun <T> assertLockFailureReported(
+suspend fun <T : Any> assertLockFailureReported(
   id: String,
   cache: SingleCache<T>,
   value: T,
@@ -374,7 +374,7 @@ suspend fun <T> assertLockFailureReported(
  * 单进程模式不使用跨进程机制：订阅期间不注册文件监听，读写后不生成锁文件和版本文件。
  * 会等其他测试遗留的文件监听释放。
  */
-suspend fun <T> assertNoMultiProcessFiles(id: String, cache: SingleCache<T>, value: T) {
+suspend fun <T : Any> assertNoMultiProcessFiles(id: String, cache: SingleCache<T>, value: T) {
   val file = singleCacheFile(id)
   val lockFile = File(file.absolutePath + ".lock")
   val versionFile = File(file.absolutePath + ".version")
@@ -410,7 +410,7 @@ fun assertConstructorErrorThrown(id: String, cache: SingleCache<*>) {
 }
 
 /** 编码时getter抛出的[TestEntityError]被反射包装后，[SingleCache.update]仍要抛出它，不能交给ExceptionHandler */
-fun <T> assertGetterErrorThrown(cache: SingleCache<T>, value: T) {
+fun <T : Any> assertGetterErrorThrown(cache: SingleCache<T>, value: T) {
   CacheErrors.clear()
   assertThrows(TestEntityError::class.java) { runBlocking { cache.update { value } } }
   assertTrue(CacheErrors.list().isEmpty())
@@ -420,7 +420,7 @@ fun <T> assertGetterErrorThrown(cache: SingleCache<T>, value: T) {
  * 无法解码的缓存用`update { null }`删除后要清空文件，否则之后每次读盘都会上报解码异常。
  * 在首次读取前写入，保证读到的是无法解码的内容。
  */
-suspend fun <T> assertDeleteUndecodable(id: String, cache: SingleCache<T>, defaultValue: T) {
+suspend fun <T : Any> assertDeleteUndecodable(id: String, cache: SingleCache<T>, defaultValue: T) {
   val file = singleCacheFile(id)
   writeCacheFileDirectly(id, "not json")
   CacheErrors.clear()
@@ -438,7 +438,7 @@ suspend fun <T> assertDeleteUndecodable(id: String, cache: SingleCache<T>, defau
  * [value]中的null写入后要原样读回。
  * 再次update时block收到的是重新读盘的值，内存缓存也能检查磁盘上的内容。
  */
-suspend fun <T> assertNullRoundTrip(cache: SingleCache<T>, value: T) {
+suspend fun <T : Any> assertNullRoundTrip(cache: SingleCache<T>, value: T) {
   assertEquals(true, cache.update { value })
   var diskValue: Any? = null
   assertEquals(true, cache.update { it.also { diskValue = it } })
@@ -451,7 +451,7 @@ suspend fun <T> assertNullRoundTrip(cache: SingleCache<T>, value: T) {
  * 在block里把数据文件换成目录让替换失败，再绕过DataStore写回原内容，读取时要重新读盘拿到原值。
  * 保持订阅，仅磁盘缓存才不会关闭DataStore。
  */
-suspend fun <T> assertReplaceFailureNotCached(id: String, cache: SingleCache<T>, value: T, newValue: T) {
+suspend fun <T : Any> assertReplaceFailureNotCached(id: String, cache: SingleCache<T>, value: T, newValue: T) {
   val file = singleCacheFile(id)
   assertEquals(true, cache.update { value })
   val content = file.readText()
@@ -490,7 +490,7 @@ private suspend fun withSingleThread(block: suspend CoroutineScope.() -> Unit) {
 }
 
 /** 通过反射创建缓存，用[produceFile]计算缓存文件，与库中的构造参数保持一致 */
-private fun <T> newSingleCache(clazz: Class<T>, multiProcess: Boolean, memoryCache: Boolean, defaultValue: T, produceFile: () -> File): SingleCache<T> {
+private fun <T : Any> newSingleCache(clazz: Class<T>, multiProcess: Boolean, memoryCache: Boolean, defaultValue: T, produceFile: () -> File): SingleCache<T> {
   val storeClass = Class.forName("com.sd.lib.singlecache.SingleCacheStore")
   val store = storeClass.getDeclaredConstructor(Class::class.java, Boolean::class.javaPrimitiveType, Function0::class.java)
     .newInstance(clazz, multiProcess, produceFile)

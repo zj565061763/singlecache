@@ -21,7 +21,7 @@ import java.io.File
  * 保留内存时DataStore一直存在；否则没有使用者时关闭DataStore，释放内存中的值，
  * 下次使用时重新创建并读盘。
  */
-internal class SingleCacheStore<T>(
+internal class SingleCacheStore<T : Any>(
   private val clazz: Class<T>,
   private val multiProcess: Boolean,
   produceFile: () -> File,
