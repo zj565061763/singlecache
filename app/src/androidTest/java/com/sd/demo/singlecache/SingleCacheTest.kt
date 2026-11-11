@@ -453,6 +453,9 @@ data class TestNoAnnotationModel(val name: String = "default")
 @SingleCacheEntity("TestGenericModel")
 data class TestGenericModel<T>(val value: T)
 
+@SingleCacheEntity("TestJavaFactoryModel", multiProcess = true)
+data class TestJavaFactoryModel(val name: String = "default")
+
 private class TestBlockException : RuntimeException()
 
 @SingleCacheEntity("TestCollectorCountModel", multiProcess = true)

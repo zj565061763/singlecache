@@ -32,12 +32,15 @@ interface SingleCache<T> {
     /**
      * 获取[clazz]对应的[SingleCache]，每次调用返回新实例并调用一次[getDefault]。
      * 同一类型的所有实例共用同一份缓存，互相能读到对方的更新。
+     *
+     * @param memoryCache 是否在内存中保留最新值，为false时没有使用者就释放内存，下次读取重新读盘
+     * @param getDefault 默认缓存，创建实例时同步调用，只构造简单对象，不要在里面访问缓存
      */
+    @JvmStatic
+    @JvmOverloads
     fun <T> get(
       clazz: Class<T>,
-      /** 是否在内存中保留最新值，为false时没有订阅和更新就释放内存，下次读取重新读盘 */
       memoryCache: Boolean = true,
-      /** 默认缓存，创建实例时同步调用，只构造简单对象，不要在里面访问缓存 */
       getDefault: () -> T,
     ): SingleCache<T> {
       val store = getStore(clazz)
