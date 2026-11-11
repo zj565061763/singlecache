@@ -29,7 +29,7 @@ Android 单值缓存库，Maven 坐标 `io.github.zj565061763.android:singlecach
 | 每个文件的版权头后加一行修改说明 | 全部 | Apache 2.0 要求标注修改 |
 | KMP 源码集展平到一个目录，删除只有 `expect` 声明的文件，去掉 `actual` 修饰符 | `Expect.kt`、`DataStoreFactory.kt`、`DirectBootExceptionUtil.kt`、`FileMoves.kt`、`handlers/NoOpCorruptionHandler.kt`、`handlers/ReplaceFileCorruptionHandler.kt` 已删除；`Actual.jvm.kt`、`DataStoreFactory.android.kt`、`DirectBootExceptionUtil.android.kt`、`FileMoves.android.kt`、`handlers/*.jvm.kt` 去掉 `actual` | 普通 Android 模块不能编译 `expect/actual` |
 | `expect` 声明上的默认参数移到实现上 | `Actual.jvm.kt` 的 `AtomicInt`、`DataStoreFactory.android.kt` 的 `create(storage, ...)` | 展平后保持原有调用方式 |
-| 用 Java mmap 重写共享计数器，删除 JNI 和 Robolectric 替身 | `SharedCounter.android.kt` | 不带 native 库，避免和 DataStore 的 so 冲突；自增只在排他文件锁内发生，不需要原子指令 |
+| 用 Java mmap 重写共享计数器，删除 JNI 和 Robolectric 替身；读写共用实例锁 | `SharedCounter.android.kt` | 不带 native 库，避免和 DataStore 的 so 冲突；自增只在排他文件锁内发生，不需要原子指令；实例锁保证同进程的同步与可见性 |
 | 移植上游 androidx-main 的修复：没拿到锁的读取使用已缓存的版本号 | `DataStoreImpl.kt` 的 `readDataAndUpdateCache`、`readDataOrHandleCorruption` | 1.2.1 中，订阅与写入并发时，订阅者可能收不到这次写入 |
 | 移植上游 androidx-main 的修复：替换数据文件时加 `ATOMIC_MOVE`，写入过程中的 `IOException` 都包装为重命名失败，原始异常作为 cause（b/203087070） | `FileMoves.android.kt`、`FileStorage.kt` 的 `writeScope` | 1.2.1 在 API 26 及以上先删除数据文件再重命名，中间不加锁的读取会读到默认值，进程被杀会丢失数据 |
 | 本库的修复，上游尚未修复（b/567175136）：订阅计数加一成功才减一，减一不可取消 | `DataStoreImpl.kt` 的 `data`、`decrementCollector` | 多个订阅者同时取消时计数会丢失：计数偏大则文件监听不释放，计数偏小则后来的订阅者收不到其他进程的写入 |

@@ -28,8 +28,8 @@ import java.nio.channels.FileChannel
 /**
  * 基于共享内存的版本计数器，多进程 DataStore 用它判断内存缓存是否过期。
  *
- * [incrementAndGetValue]只在持有跨进程排他文件锁时调用，所以不需要原子指令；
- * 不加锁的[getValue]最坏读到旧值，只会多一次加锁重读。
+ * [incrementAndGetValue]只在持有跨进程排他文件锁时调用，所以自增不需要原子指令；
+ * 读写共用实例锁，保证同进程的同步与可见性，读到旧版本号可能使读取跳过读盘。
  *
  * 不能给 DataStore 传[ReplaceFileCorruptionHandler]：它处理解码失败时可能只持有共享锁，
  * 多个进程同时自增会丢失版本号。
@@ -43,6 +43,7 @@ internal interface SharedCounter {
         /** 映射版本文件的前4个字节，多个进程映射同一文件时共享这块内存 */
         private val buffer: MappedByteBuffer,
     ) : SharedCounter {
+        @Synchronized
         override fun getValue(): Int {
             return buffer.getInt(0)
         }
