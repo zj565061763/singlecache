@@ -7,7 +7,7 @@ import com.squareup.moshi.JsonWriter
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 
-/** 默认的Moshi转换器，写入时保留null并校验非法UTF-16，读取时校验非法UTF-8 */
+/** 默认的Moshi转换器，写入时保留null，读写时校验非法UTF-16，读取时校验非法UTF-8 */
 internal object DefaultObjectConverter {
   private val _moshi = Moshi.Builder()
     .add(String::class.java, StrictStringJsonAdapter.nullSafe())
@@ -29,7 +29,15 @@ internal object DefaultObjectConverter {
 }
 
 private object StrictStringJsonAdapter : JsonAdapter<String>() {
-  override fun fromJson(reader: JsonReader): String = reader.nextString()
+  override fun fromJson(reader: JsonReader): String {
+    val value = reader.nextString()
+    try {
+      value.encodeToByteArray(throwOnInvalidSequence = true)
+    } catch (error: CharacterCodingException) {
+      throw JsonDataException("Invalid UTF-16 at path ${reader.path}", error)
+    }
+    return value
+  }
 
   override fun toJson(writer: JsonWriter, value: String?) {
     checkNotNull(value)
@@ -47,6 +55,9 @@ private object StrictCharJsonAdapter : JsonAdapter<Char>() {
     val value = reader.nextString()
     if (value.length != 1) {
       throw JsonDataException("Expected a char but was \"$value\" at path ${reader.path}")
+    }
+    if (Character.isSurrogate(value[0])) {
+      throw JsonDataException("Invalid UTF-16 at path ${reader.path}", CharacterCodingException())
     }
     return value[0]
   }

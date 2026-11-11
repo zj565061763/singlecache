@@ -138,6 +138,36 @@ class SingleCacheTest {
     assertTrue(CacheErrors.list().any { it is CharacterCodingException })
   }
 
+  @Test
+  fun testEscapedStringHighSurrogate() {
+    runBlocking {
+      assertEscapedUtf16Rejected(
+        id = "TestEscapedStringHighSurrogateModel",
+        content = """{"name":"\ud800","count":1}""",
+        path = "$.name",
+        cache = singleCache { TestEscapedStringHighSurrogateModel() },
+        defaultValue = TestEscapedStringHighSurrogateModel(),
+        updatedValue = TestEscapedStringHighSurrogateModel(count = 1),
+        transform = { it.copy(count = it.count + 1) },
+      )
+    }
+  }
+
+  @Test
+  fun testEscapedNullableCharHighSurrogate() {
+    runBlocking {
+      assertEscapedUtf16Rejected(
+        id = "TestEscapedNullableCharHighSurrogateModel",
+        content = """{"ch":"\ud800","count":1}""",
+        path = "$.ch",
+        cache = singleCache { TestEscapedNullableCharHighSurrogateModel() },
+        defaultValue = TestEscapedNullableCharHighSurrogateModel(),
+        updatedValue = TestEscapedNullableCharHighSurrogateModel(count = 1),
+        transform = { it.copy(count = it.count + 1) },
+      )
+    }
+  }
+
   /** 无法解码的缓存可以删除 */
   @Test
   fun testDeleteUndecodable() = runBlocking {
@@ -372,6 +402,18 @@ private const val PRODUCE_FILE_FAILURE_MODEL_ID = "TestProduceFileFailureModel"
 private const val LOCK_FAILURE_MODEL_ID = "TestLockFailureModel"
 private const val DUPLICATE_MODEL_ID = "TestDuplicateIdModel"
 private const val CONSTRUCTOR_ERROR_MODEL_ID = "TestConstructorErrorModel"
+
+@SingleCacheEntity("TestEscapedStringHighSurrogateModel", multiProcess = true)
+data class TestEscapedStringHighSurrogateModel(
+  val name: String = "default",
+  val count: Int = 0,
+)
+
+@SingleCacheEntity("TestEscapedNullableCharHighSurrogateModel", multiProcess = true)
+data class TestEscapedNullableCharHighSurrogateModel(
+  val ch: Char? = 'a',
+  val count: Int = 0,
+)
 
 @SingleCacheEntity("TestUpdateModel", multiProcess = true)
 data class TestUpdateModel(val name: String = "default")

@@ -7,6 +7,7 @@ import app.cash.turbine.ReceiveTurbine
 import app.cash.turbine.test
 import app.cash.turbine.withTurbineTimeout
 import com.sd.lib.singlecache.SingleCache
+import com.squareup.moshi.JsonDataException
 import com.squareup.moshi.JsonEncodingException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -444,6 +445,54 @@ suspend fun <T : Any> assertNullRoundTrip(cache: SingleCache<T>, value: T) {
   assertEquals(true, cache.update { it.also { diskValue = it } })
   assertEquals(value, diskValue)
   assertEquals(value, cache.get())
+}
+
+/** JSON转义中的孤立代理项视为解码失败，Flow发射默认值并能通过更新其他字段恢复 */
+suspend fun <T : Any> assertEscapedUtf16Rejected(
+  id: String,
+  content: String,
+  path: String,
+  cache: SingleCache<T>,
+  defaultValue: T,
+  updatedValue: T,
+  transform: (T) -> T,
+) {
+  writeCacheFileDirectly(id, content)
+  CacheErrors.clear()
+
+  cache.flow.test(timeout = TEST_TIMEOUT) {
+    assertEquals(defaultValue, awaitItem())
+    assertTrue(CacheErrors.list().any {
+      it is JsonDataException && it.message.orEmpty().contains("Invalid UTF-16 at path $path") && it.cause is CharacterCodingException
+    })
+
+    assertEquals(true, cache.update {
+      assertEquals(defaultValue, it)
+      transform(it)
+    })
+    assertEquals(updatedValue, awaitItem())
+
+    CacheErrors.clear()
+    assertEquals(updatedValue, cache.get())
+    assertTrue(CacheErrors.list().isEmpty())
+  }
+}
+
+/** JSON转义中的合法代理对可以读出并在更新其他字段后保留 */
+suspend fun <T : Any> assertEscapedSurrogatePairRoundTrip(
+  id: String,
+  cache: SingleCache<T>,
+  value: T,
+  updatedValue: T,
+  transform: (T) -> T,
+) {
+  writeCacheFileDirectly(id, """{"name":"\ud83d\ude00","count":1}""")
+  CacheErrors.clear()
+
+  assertEquals(value, cache.get())
+  assertEquals(true, cache.update { transform(it) })
+  assertEquals(updatedValue, cache.get())
+  assertTrue(CacheErrors.list().isEmpty())
 }
 
 /**

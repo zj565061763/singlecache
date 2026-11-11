@@ -20,6 +20,62 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class SingleProcessSingleCacheTest {
   @Test
+  fun testEscapedCharHighSurrogate() {
+    runBlocking {
+      assertEscapedUtf16Rejected(
+        id = "SpEscapedCharHighSurrogateModel",
+        content = """{"ch":"\ud800","count":1}""",
+        path = "$.ch",
+        cache = singleCache { SpEscapedCharHighSurrogateModel() },
+        defaultValue = SpEscapedCharHighSurrogateModel(),
+        updatedValue = SpEscapedCharHighSurrogateModel(count = 1),
+        transform = { it.copy(count = it.count + 1) },
+      )
+    }
+  }
+
+  @Test
+  fun testEscapedCharLowSurrogateDisk() {
+    runBlocking {
+      assertEscapedUtf16Rejected(
+        id = "SpDiskEscapedCharLowSurrogateModel",
+        content = """{"ch":"\udfff","count":1}""",
+        path = "$.ch",
+        cache = singleCache(memoryCache = false) { SpDiskEscapedCharLowSurrogateModel() },
+        defaultValue = SpDiskEscapedCharLowSurrogateModel(),
+        updatedValue = SpDiskEscapedCharLowSurrogateModel(count = 1),
+        transform = { it.copy(count = it.count + 1) },
+      )
+    }
+  }
+
+  @Test
+  fun testEscapedSurrogatePair() {
+    runBlocking {
+      assertEscapedSurrogatePairRoundTrip(
+        id = "SpEscapedSurrogatePairModel",
+        cache = singleCache { SpEscapedSurrogatePairModel() },
+        value = SpEscapedSurrogatePairModel(name = "\uD83D\uDE00", count = 1),
+        updatedValue = SpEscapedSurrogatePairModel(name = "\uD83D\uDE00", count = 2),
+        transform = { it.copy(count = it.count + 1) },
+      )
+    }
+  }
+
+  @Test
+  fun testEscapedSurrogatePairDisk() {
+    runBlocking {
+      assertEscapedSurrogatePairRoundTrip(
+        id = "SpDiskEscapedSurrogatePairModel",
+        cache = singleCache(memoryCache = false) { SpDiskEscapedSurrogatePairModel() },
+        value = SpDiskEscapedSurrogatePairModel(name = "\uD83D\uDE00", count = 1),
+        updatedValue = SpDiskEscapedSurrogatePairModel(name = "\uD83D\uDE00", count = 2),
+        transform = { it.copy(count = it.count + 1) },
+      )
+    }
+  }
+
+  @Test
   fun testUpdateAndGet() = runBlocking {
     assertUpdateAndGet(singleCache { SpUpdateModel() })
   }
@@ -264,6 +320,30 @@ private const val SP_DISK_NO_MULTI_PROCESS_FILES_MODEL_ID = "SpDiskNoMultiProces
 private const val SP_DIRECTORY_FAILURE_MODEL_ID = "SpDirectoryFailureModel"
 private const val SP_CONSTRUCTOR_ERROR_MODEL_ID = "SpConstructorErrorModel"
 private const val SP_DISK_DIRECTORY_FAILURE_MODEL_ID = "SpDiskDirectoryFailureModel"
+
+@SingleCacheEntity("SpEscapedCharHighSurrogateModel")
+data class SpEscapedCharHighSurrogateModel(
+  val ch: Char = 'a',
+  val count: Int = 0,
+)
+
+@SingleCacheEntity("SpDiskEscapedCharLowSurrogateModel")
+data class SpDiskEscapedCharLowSurrogateModel(
+  val ch: Char = 'a',
+  val count: Int = 0,
+)
+
+@SingleCacheEntity("SpEscapedSurrogatePairModel")
+data class SpEscapedSurrogatePairModel(
+  val name: String = "default",
+  val count: Int = 0,
+)
+
+@SingleCacheEntity("SpDiskEscapedSurrogatePairModel")
+data class SpDiskEscapedSurrogatePairModel(
+  val name: String = "default",
+  val count: Int = 0,
+)
 
 @SingleCacheEntity("SpUpdateModel")
 data class SpUpdateModel(override val count: Int = 0) : SingleProcessCounter<SpUpdateModel> {

@@ -17,6 +17,36 @@ import java.util.concurrent.atomic.AtomicInteger
 /** 多进程模式下memoryCache=false的仅磁盘缓存，单进程模式见[SingleProcessSingleCacheTest] */
 @RunWith(AndroidJUnit4::class)
 class DiskSingleCacheTest {
+  @Test
+  fun testEscapedStringLowSurrogate() {
+    runBlocking {
+      assertEscapedUtf16Rejected(
+        id = "TestDiskEscapedStringLowSurrogateModel",
+        content = """{"name":"\udfff","count":1}""",
+        path = "$.name",
+        cache = singleCache(memoryCache = false) { TestDiskEscapedStringLowSurrogateModel() },
+        defaultValue = TestDiskEscapedStringLowSurrogateModel(),
+        updatedValue = TestDiskEscapedStringLowSurrogateModel(count = 1),
+        transform = { it.copy(count = it.count + 1) },
+      )
+    }
+  }
+
+  @Test
+  fun testEscapedNullableCharLowSurrogate() {
+    runBlocking {
+      assertEscapedUtf16Rejected(
+        id = "TestDiskEscapedNullableCharLowSurrogateModel",
+        content = """{"ch":"\udfff","count":1}""",
+        path = "$.ch",
+        cache = singleCache(memoryCache = false) { TestDiskEscapedNullableCharLowSurrogateModel() },
+        defaultValue = TestDiskEscapedNullableCharLowSurrogateModel(),
+        updatedValue = TestDiskEscapedNullableCharLowSurrogateModel(count = 1),
+        transform = { it.copy(count = it.count + 1) },
+      )
+    }
+  }
+
   /** 每次返回新实例，并调用一次getDefault */
   @Test
   fun testNewInstance() {
@@ -217,6 +247,18 @@ private const val DISK_LOCKED_RECOVER_MODEL_ID = "TestDiskLockedRecoverModel"
 private const val DISK_DIRECTORY_FAILURE_MODEL_ID = "TestDiskDirectoryFailureModel"
 private const val DISK_LOCK_FAILURE_MODEL_ID = "TestDiskLockFailureModel"
 private const val DISK_PRODUCE_FILE_FAILURE_MODEL_ID = "TestDiskProduceFileFailureModel"
+
+@SingleCacheEntity("TestDiskEscapedStringLowSurrogateModel", multiProcess = true)
+data class TestDiskEscapedStringLowSurrogateModel(
+  val name: String = "default",
+  val count: Int = 0,
+)
+
+@SingleCacheEntity("TestDiskEscapedNullableCharLowSurrogateModel", multiProcess = true)
+data class TestDiskEscapedNullableCharLowSurrogateModel(
+  val ch: Char? = 'a',
+  val count: Int = 0,
+)
 
 @SingleCacheEntity("TestDiskInstanceModel")
 data class TestDiskInstanceModel(val name: String = "default")

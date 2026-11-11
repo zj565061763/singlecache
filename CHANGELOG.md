@@ -11,3 +11,7 @@
 - `singleCache` 每次调用返回新实例，同一类型的实例共用同一份缓存
 - Java 可用 `SingleCache.get(clazz, getDefault)`，也可显式传入 `memoryCache`
 - 实体类型和默认值必须非空，实体内部的字段可以为 `null`；默认值为 `null` 时创建实例立即抛出 `IllegalArgumentException`
+
+### 🐛 Fixes
+
+- JSON 转义中的孤立代理项视为解码失败，避免读取后无法更新其他字段

@@ -104,6 +104,7 @@ val diskCache = singleCache(memoryCache = false) { UserProfile() } // 仅磁盘�
 
 - 读写失败交给 `ExceptionHandler`，然后降级：`update` 返回 `false`，`flow` 保留当前值，首次读取失败发射默认值。
 - 解码失败视为无缓存，序列化器不抛 `CorruptionException`。
+- String 和 Char 适配器在解码后校验非法 UTF-16，JSON 转义中的孤立代理项也视为解码失败。
 - 解码失败返回 `CacheState.Undecodable`，不能用 `Absent`：否则 `update { null }` 时新旧值相等，DataStore 不写盘，文件删不掉。
 - `update` 的 `block` 抛出的异常原样抛给调用方，不经过 `ExceptionHandler`。
 - `block` 修改传入的值时，只有 hashCode 随之变化才会被 DataStore 检查到，`update` 返回 `false`。
@@ -148,9 +149,9 @@ val diskCache = singleCache(memoryCache = false) { UserProfile() } // 仅磁盘�
 
 | 测试类 | 覆盖范围 |
 |---|---|
-| `SingleCacheTest` | 多进程模式：读写、删除、挂起的 block、阻塞调用方线程时不死锁、新实例共用 DataStore、Flow、并发更新、解码失败、非法 UTF-8、删除无法解码的缓存、替换文件失败不缓存新值、null 值读写、不可空字段读到 null、读取失败、锁被占用时恢复读取、数据目录创建失败后恢复、计算缓存文件路径失败后恢复、并发取消订阅后的订阅计数和文件监听、读取不启动文件监听、订阅期间拿锁失败不崩溃且继续监听、非法 UTF-16、配置错误、泛型实体、构造函数和 getter 抛出的 Error 继续抛出 |
-| `DiskSingleCacheTest` | 多进程模式的仅磁盘缓存：实例和默认值、释放后重新读盘、Flow、并发更新、与内存缓存混用、删除无法解码的缓存、替换文件失败不缓存新值、null 值读写、读取失败后的写入、锁被占用时恢复读取、数据目录创建失败后恢复、计算缓存文件路径失败后恢复、并发取消订阅后的订阅计数和文件监听、读取不启动文件监听、订阅期间拿锁失败不崩溃且继续监听、阻塞调用方线程时不死锁 |
-| `SingleProcessSingleCacheTest` | 单进程模式，内存缓存和仅磁盘缓存：读写、删除、Flow、并发更新、快速连续更新、释放后重新读盘、两种模式混用、删除无法解码的缓存、null 值读写、替换文件失败不缓存新值、读取失败后的写入、阻塞调用方线程时不死锁、不注册文件监听且不生成锁文件和版本文件、数据目录创建失败时读取返回默认值且写入失败、构造函数和 getter 抛出的 Error 继续抛出 |
+| `SingleCacheTest` | 多进程模式：读写、删除、挂起的 block、阻塞调用方线程时不死锁、新实例共用 DataStore、Flow、并发更新、解码失败、非法 UTF-8、删除无法解码的缓存、替换文件失败不缓存新值、null 值读写、不可空字段读到 null、读取失败、锁被占用时恢复读取、数据目录创建失败后恢复、计算缓存文件路径失败后恢复、并发取消订阅后的订阅计数和文件监听、读取不启动文件监听、订阅期间拿锁失败不崩溃且继续监听、非法 UTF-16、配置错误、泛型实体、构造函数和 getter 抛出的 Error 继续抛出、JSON 转义中的 String 和可空 Char 孤立高代理项 |
+| `DiskSingleCacheTest` | 多进程模式的仅磁盘缓存：实例和默认值、释放后重新读盘、Flow、并发更新、与内存缓存混用、删除无法解码的缓存、替换文件失败不缓存新值、null 值读写、读取失败后的写入、锁被占用时恢复读取、数据目录创建失败后恢复、计算缓存文件路径失败后恢复、并发取消订阅后的订阅计数和文件监听、读取不启动文件监听、订阅期间拿锁失败不崩溃且继续监听、阻塞调用方线程时不死锁、JSON 转义中的 String 和可空 Char 孤立低代理项 |
+| `SingleProcessSingleCacheTest` | 单进程模式，内存缓存和仅磁盘缓存：读写、删除、Flow、并发更新、快速连续更新、释放后重新读盘、两种模式混用、删除无法解码的缓存、null 值读写、替换文件失败不缓存新值、读取失败后的写入、阻塞调用方线程时不死锁、不注册文件监听且不生成锁文件和版本文件、数据目录创建失败时读取返回默认值且写入失败、构造函数和 getter 抛出的 Error 继续抛出、JSON 转义中的 Char 孤立高低代理项和 String 合法代理对 |
 | `MultiProcessSingleCacheTest` | 两种模式的跨进程并发更新和更新通知、无订阅者读取 |
 | `SingleCacheJavaTest` | Java 静态入口、默认参数重载、原有 Companion 入口和空默认值校验 |
 
