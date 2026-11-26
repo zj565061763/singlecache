@@ -1,15 +1,20 @@
 [![Maven Central](https://img.shields.io/maven-central/v/io.github.zj565061763.android/singlecache)](https://central.sonatype.com/search?q=g:io.github.zj565061763.android+singlecache)
+[![JitPack](https://jitpack.io/v/zj565061763/singlecache.svg)](https://jitpack.io/#zj565061763/singlecache)
 
 单值缓存库：每个实体类型只保存一个值，可选支持多进程读写。
 
 # Gradle
 
 ```kotlin
+// Maven Central
 implementation("io.github.zj565061763.android:singlecache:$version")
-```
 
-- 本库不会传递 Kotlin 协程依赖，接入方必须自行声明协程依赖（1.8.1 及以上）。
-- 本库不依赖 DataStore 的 artifact，和接入方自己的 DataStore 可以同时使用。
+// JitPack
+implementation("com.github.zj565061763:singlecache:$version")
+
+// 本库不会传递 Kotlin 协程依赖，接入方必须自行声明协程依赖
+implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
+```
 
 版本更新记录请查看 [CHANGELOG.md](CHANGELOG.md)。
 
