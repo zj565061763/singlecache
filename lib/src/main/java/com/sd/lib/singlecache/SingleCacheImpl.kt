@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.produceIn
 import kotlinx.coroutines.withContext
 import kotlin.coroutines.cancellation.CancellationException
+import kotlin.time.Duration.Companion.milliseconds
 
 /** 数据目录不存在时，读取失败后重读的间隔 */
 private const val RETRY_DELAY_MILLIS = 10_000L
@@ -49,7 +50,7 @@ internal class SingleCacheImpl<T : Any>(
             }
             // 目录不存在时注册的监听无效，还会让同目录后来的监听一起失效，改为延时重读
             if (fileChanges == null && !directoryExists()) {
-              delay(RETRY_DELAY_MILLIS)
+              delay(RETRY_DELAY_MILLIS.milliseconds)
               continue
             }
             // 注册完成的首个事件立即触发重读，不会漏掉失败到注册之间的写入

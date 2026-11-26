@@ -27,8 +27,9 @@ class SingleCacheConfig private constructor(
       private set
 
     /** 设置异常处理 */
-    fun setExceptionHandler(handler: ExceptionHandler) = apply {
+    fun setExceptionHandler(handler: ExceptionHandler): Builder {
       this.exceptionHandler = handler
+      return this
     }
 
     /** 创建配置 */
